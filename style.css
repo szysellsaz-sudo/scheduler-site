@@ -1,0 +1,14 @@
+:root{--ink:#000;--muted:#4A4A4A;--gold:#C5A95E;--line:#D9D9D9;--bg:#fff}
+@media (prefers-color-scheme:dark){:root{--ink:#fff;--muted:#CFCFCF;--line:#333;--bg:#000}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:300 17px/1.6 "Nunito Sans",system-ui,sans-serif}
+header{background:#000;color:#fff;padding:28px 16px;border-bottom:3px solid var(--gold)}
+header .wrap,main{max-width:760px;margin:0 auto}
+header a{color:var(--gold);text-decoration:none;font-weight:700;letter-spacing:.08em}
+main{padding:32px 16px 64px}
+h1{font-weight:900;font-size:32px;line-height:1.2;margin:0 0 8px}
+h2{font-weight:900;font-size:20px;margin:32px 0 8px}
+.muted{color:var(--muted)}
+a{color:inherit}
+ul{padding-left:22px}
+footer{border-top:1px solid var(--line);margin-top:48px;padding-top:16px;font-size:14px;color:var(--muted)}
