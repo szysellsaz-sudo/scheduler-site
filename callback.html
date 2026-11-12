@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Connected · Szymon Scheduler</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;700;900&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+code{display:block;word-break:break-all;padding:14px;border:1px solid var(--line);border-radius:14px;font-size:15px;margin:12px 0}
+button{min-height:44px;padding:0 22px;border-radius:9999px;border:0;background:#000;color:#fff;font:inherit;font-weight:700;cursor:pointer}
+@media (prefers-color-scheme:dark){button{background:#fff;color:#000}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><a href="./">SZYMON SCHEDULER</a></div></header>
+<main>
+<h1 id="title">Finishing sign-in…</h1>
+<p id="msg" class="muted">Reading the response from TikTok.</p>
+<code id="code" hidden></code>
+<button id="copy" type="button" hidden>Copy code</button>
+<script>
+(function(){
+  var p=new URLSearchParams(location.search);
+  var code=p.get('code'), err=p.get('error');
+  var t=document.getElementById('title'), m=document.getElementById('msg'), c=document.getElementById('code'), b=document.getElementById('copy');
+  if(code){
+    t.textContent='TikTok connected';
+    m.textContent='Copy this one-time code and paste it into the scheduler on your laptop. It expires in a few minutes and only works with your app secret, so it is safe to show here.';
+    c.textContent=code; c.hidden=false; b.hidden=false;
+    b.onclick=function(){navigator.clipboard.writeText(code).then(function(){b.textContent='Copied';});};
+    history.replaceState(null,'',location.pathname);
+  } else if(err){
+    t.textContent='Sign-in was not completed';
+    m.textContent='TikTok said: '+(p.get('error_description')||err)+'. Close this tab and try again.';
+  } else {
+    t.textContent='Nothing to do here';
+    m.textContent='This page receives the TikTok sign-in for Szymon Scheduler.';
+  }
+})();
+</script>
+</main>
+</body>
+</html>
