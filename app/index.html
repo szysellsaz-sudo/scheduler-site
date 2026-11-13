@@ -62,6 +62,8 @@ h2{margin:0;font-size:18px;font-weight:900}
 .notice{padding:12px 16px;border-radius:12px;background:var(--gold-soft);font-size:14px}
 .notice.bad{background:var(--bad-soft);color:var(--bad)}
 .section-title{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:4px}
+.storylink{margin-top:8px;display:inline-flex;gap:6px;align-items:center;background:var(--gold-soft);color:#7A6223;border-radius:999px;padding:3px 10px}
+.storylink::before{content:"\25CE";font-size:12px}
 .sec-head{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;padding:6px 0;cursor:pointer;text-align:left;font:inherit;color:inherit}
 .sec-head h2,.sec-head h3{margin:0}
 .sec-head .chev{display:inline-block;width:10px;height:10px;border-right:2.5px solid currentColor;border-bottom:2.5px solid currentColor;transform:rotate(45deg);margin:0 4px 4px 2px;transition:transform .15s}
@@ -294,6 +296,26 @@ function resultLine(p, k) {
   }
   return `<div><b>${NAMES[k]}</b> <span class="chip bad">${r.attempts >= 3 ? "Gave up" : "Will retry"}</span> <span class="muted">${esc(r.error || "")}</span></div>`;
 }
+// Stories made from a post with "Also post as a full-screen story" (older ones are matched by title).
+function storiesOf(id, title) {
+  return S.posts.filter(x => x.id !== id && x.status !== "cancelled" &&
+    (x.story_of === id || (!x.story_of && title && (x.title || "").startsWith(title + " (story"))));
+}
+function storyParent(p) {
+  if (p.story_of) return S.posts.find(x => x.id === p.story_of) || null;
+  const m = (p.title || "").match(/^(.*) \(story( \d+\/\d+)?\)$/);
+  return m ? S.posts.find(x => x.id !== p.id && x.title === m[1]) || null : null;
+}
+function storyLine(p) {
+  const kids = storiesOf(p.id, p.title);
+  if (kids.length) {
+    const first = kids.slice().sort((a, b) => a.scheduled_for.localeCompare(b.scheduled_for))[0];
+    return `<div class="tiny storylink">${kids.length > 1 ? `${kids.length} stories scheduled, from` : "Story scheduled for"} <b>${esc(first.when_local)}</b></div>`;
+  }
+  const parent = storyParent(p);
+  return parent ? `<div class="tiny storylink">Story for <b>${esc(parent.title || "Untitled post")}</b></div>` : "";
+}
+
 function postCard(p, opts = {}) {
   const pending = p.status === "pending";
   const started = Object.keys(p.results).length > 0;
@@ -320,6 +342,7 @@ function postCard(p, opts = {}) {
       <h3 style="margin-top:8px">${esc(p.title || "Untitled post")}</h3>
       <div class="cap">${esc(firstCaption(p))}</div>
       <div class="results">${Object.keys(p.platforms).map(k => resultLine(p, k)).join("")}</div>
+      ${storyLine(p)}
     </div>
     <div class="actions">
       ${acts}
@@ -733,7 +756,8 @@ function viewCompose() {
       <section class="card stack">
         <h2>3. Where</h2>
         ${plat("instagram")}${plat("facebook")}${plat("tiktok")}
-        ${storyTwin(c).length ? `<div class="platform ${c.alsoStory ? "on" : ""}"><div class="head"><label><input type="checkbox" id="alsostory" ${c.alsoStory ? "checked" : ""}> ${storyInfo(c).label}</label></div><div class="muted tiny">${storyInfo(c).text}</div></div>` : ""}
+        ${c.editId && storiesOf(c.editId, c.title).length ? `<div class="platform"><div class="head"><b>Full-screen stories already scheduled</b></div><div class="muted tiny">${storiesOf(c.editId, c.title).map(x => esc(x.when_local)).join(" · ")}. To change them, edit or cancel the story posts in the queue.</div></div>` :
+          storyTwin(c).length ? `<div class="platform ${c.alsoStory ? "on" : ""}"><div class="head"><label><input type="checkbox" id="alsostory" ${c.alsoStory ? "checked" : ""}> ${storyInfo(c).label}</label></div><div class="muted tiny">${storyInfo(c).text}</div></div>` : ""}
       </section>
     </div>
     <div class="stack" style="position:sticky;top:20px">
