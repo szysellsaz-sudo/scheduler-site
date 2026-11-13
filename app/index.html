@@ -62,6 +62,14 @@ h2{margin:0;font-size:18px;font-weight:900}
 .notice{padding:12px 16px;border-radius:12px;background:var(--gold-soft);font-size:14px}
 .notice.bad{background:var(--bad-soft);color:var(--bad)}
 .section-title{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:4px}
+.sec-head{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;padding:6px 0;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.sec-head h2,.sec-head h3{margin:0}
+.sec-head .chev{display:inline-block;width:10px;height:10px;border-right:2.5px solid currentColor;border-bottom:2.5px solid currentColor;transform:rotate(45deg);margin:0 4px 4px 2px;transition:transform .15s}
+.sec-head[aria-expanded="false"] .chev{transform:rotate(-45deg);margin-bottom:0}
+.sec-head .count{font-size:12px;font-weight:800;background:var(--g5);border-radius:999px;padding:2px 9px}
+.sec-head .sub{margin-left:auto}
+.day{padding-left:6px;border-left:2px solid var(--g5)}
+.day .sec-head h3{font-size:15px}
 /* queue */
 .post{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:18px;align-items:start}
 .thumb{width:96px;height:120px;border-radius:10px;background:var(--g5);overflow:hidden;position:relative}
@@ -383,6 +391,37 @@ function refreshOpenPost() {
 }
 
 // ---------- views ----------
+// Collapsible sections; what's open is remembered on this computer.
+const SEC_KEY = "scheduler.sections";
+function secOpen(key, dflt) {
+  if (!S.sections) { try { S.sections = JSON.parse(localStorage.getItem(SEC_KEY) || "{}"); } catch (e) { S.sections = {}; } }
+  return key in S.sections ? S.sections[key] : dflt;
+}
+function toggleSec(key, dflt) {
+  S.sections[key] = !secOpen(key, dflt);
+  try { localStorage.setItem(SEC_KEY, JSON.stringify(S.sections)); } catch (e) {}
+  render();
+}
+function sec(key, title, items, body, opts = {}) {
+  const dflt = opts.open !== false, open = secOpen(key, dflt), tag = opts.small ? "h3" : "h2";
+  return `<section class="stack ${opts.small ? "day" : ""}">
+    <button class="sec-head" data-sec="${esc(key)}" data-dflt="${dflt ? 1 : 0}" aria-expanded="${open}">
+      <span class="chev" aria-hidden="true"></span><${tag}>${esc(title)}</${tag}>${items !== null ? `<span class="count">${items}</span>` : ""}
+      ${opts.sub ? `<span class="muted tiny sub">${esc(opts.sub)}</span>` : ""}
+    </button>
+    ${open ? body : ""}
+  </section>`;
+}
+function byDay(posts) {
+  const days = [];
+  for (const p of posts) {
+    const d = p.when_local.split(",")[0];
+    if (!days.length || days[days.length - 1].day !== d) days.push({day: d, posts: []});
+    days[days.length - 1].posts.push(p);
+  }
+  return days;
+}
+
 function viewQueue() {
   const now = Date.now();
   const busy = S.posts.filter(p => p.publishing);
@@ -397,15 +436,14 @@ function viewQueue() {
   </header>
   ${S.error ? `<div class="notice bad">${esc(S.error)}</div>` : ""}
   ${overdue.length ? `<div class="notice">${overdue.length === 1 ? "One post is" : overdue.length + " posts are"} past their time. GitHub's timer can run up to about 30 minutes late. Press <b>Post now</b> if it can't wait.</div>` : ""}
-  ${drafts.length ? `<section class="stack"><div class="section-title"><h2>Needs your approval</h2><span class="muted tiny">Nothing here posts until you approve it</span></div>${drafts.map(p => postCard(p)).join("")}</section>` : ""}
+  ${drafts.length ? sec("drafts", "Needs your approval", drafts.length, drafts.map(p => postCard(p)).join(""), {sub: "Nothing here posts until you approve it"}) : ""}
   ${busy.length ? `<section class="stack"><h2>Publishing now</h2>${busy.map(p => postCard(p)).join("")}</section>` : ""}
-  <section class="stack">
-    <div class="section-title"><h2>Coming up</h2><span class="muted tiny">Times are Arizona time</span></div>
-    ${S.loading ? `<div class="card empty"><span class="spin"></span> Loading…</div>` :
-      upcoming.length ? upcoming.map(p => postCard(p)).join("") :
-      `<div class="card empty"><p><b>Nothing approved and scheduled.</b></p><p>Make a post here, or ask Claude to draft one for you.</p><a class="btn primary" href="#new">New post</a></div>`}
-  </section>
-  ${recent.length ? `<section class="stack"><h2>Recent</h2>${recent.map(p => postCard(p)).join("")}</section>` : ""}`;
+  ${sec("upcoming", "Coming up", S.loading ? null : upcoming.length,
+    S.loading ? `<div class="card empty"><span class="spin"></span> Loading…</div>` :
+      upcoming.length ? byDay(upcoming).map(d => sec("day:" + d.day, d.day, d.posts.length, d.posts.map(p => postCard(p)).join(""), {small: true})).join("") :
+      `<div class="card empty"><p><b>Nothing approved and scheduled.</b></p><p>Make a post here, or ask Claude to draft one for you.</p><a class="btn primary" href="#new">New post</a></div>`,
+    {sub: "Times are Arizona time"})}
+  ${recent.length ? sec("recent", "Recent", recent.length, recent.map(p => postCard(p)).join(""), {open: false}) : ""}`;
 }
 
 function viewCalendar() {
@@ -895,7 +933,10 @@ function render() {
     $("#ttgo").onclick = async () => { try { await api("/api/tiktok/code", {body: {code: $("#ttcode").value}}); toast("TikTok connected."); loadStatus(); } catch (e) { toast(e.message, true); } };
     if (!S.best) loadBest().then(() => route() === "accounts" && render());
   }
-  else { main.innerHTML = viewQueue(); const rb = $("#refresh"); if (rb) rb.onclick = () => { toast("Refreshing…"); loadPosts(); }; }
+  else {
+    main.innerHTML = viewQueue(); const rb = $("#refresh"); if (rb) rb.onclick = () => { toast("Refreshing…"); loadPosts(); };
+    document.querySelectorAll("[data-sec]").forEach(b => b.onclick = () => toggleSec(b.dataset.sec, b.dataset.dflt === "1"));
+  }
 }
 window.addEventListener("hashchange", () => { render(); if (route() === "accounts" && !S.status) loadStatus(); $("#main").focus({preventScroll: true}); window.scrollTo(0, 0); });
 render();
