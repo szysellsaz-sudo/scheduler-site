@@ -1,0 +1,906 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Social Scheduler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito+Sans:wght@400;600;700;900&display=swap">
+<style>
+:root{
+  --black:#000;--ink:#111;--white:#fff;--gold:#C5A95E;--gold-soft:#F6F0DF;
+  --g1:#1C1C1C;--g2:#4A4A4A;--g3:#8A8A8A;--g4:#CFCFCF;--g5:#ECEBE7;--bg:#FAF9F6;
+  --ok:#2E7D4F;--ok-soft:#E5F2EA;--bad:#B3261E;--bad-soft:#FBE9E7;--warn:#9A6A00;--warn-soft:#FFF4D6;
+  --radius:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Nunito Sans',system-ui,sans-serif;font-size:15px}
+a{color:inherit}
+button,input,select,textarea{font:inherit;color:inherit}
+.display{font-family:'Bebas Neue',sans-serif;letter-spacing:.06em}
+.app{min-height:100vh;display:flex;background:linear-gradient(to right,var(--black) 240px,var(--bg) 240px)}
+main:focus{outline:none}
+nav.side{width:240px;flex:0 0 240px;background:var(--black);color:var(--white);padding:28px 18px;display:flex;flex-direction:column;gap:28px;position:sticky;top:0;height:100vh}
+.brand{padding:0 10px}
+.brand b{display:block;font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:.06em;color:var(--gold);line-height:1;font-weight:400}
+.brand span{font-size:11px;font-weight:700;letter-spacing:2px;color:var(--g4)}
+.navlinks{display:flex;flex-direction:column;gap:4px}
+.navlinks a{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:999px;color:var(--g4);text-decoration:none;font-weight:600}
+.navlinks a svg{flex:0 0 18px}
+.navlinks a.on{background:var(--g1);color:var(--white);font-weight:700}
+.navlinks a.on svg{stroke:var(--gold)}
+.badge{margin-left:auto;background:var(--gold);color:var(--black);border-radius:999px;font-size:12px;font-weight:900;padding:1px 8px}
+.preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.preview img,.preview video{width:100%;max-height:420px;object-fit:contain;background:var(--black);border-radius:10px;display:block}
+.me{margin-top:auto;display:flex;gap:12px;align-items:center;padding:0 10px}
+.me .av{width:42px;height:42px;border-radius:50%;border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;background:var(--g1)}
+.me small{display:block;color:var(--g4);font-size:12px}
+main{flex:1;min-width:0;padding:36px 44px 80px;display:flex;flex-direction:column;gap:28px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}
+.eyebrow{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.1em;color:var(--g2)}
+h1{margin:4px 0 0;font-size:28px;font-weight:900;line-height:1.2}
+h2{margin:0;font-size:18px;font-weight:900}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:0 20px;border-radius:999px;border:1.5px solid var(--black);background:var(--white);font-weight:700;cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn.primary{background:var(--black);color:var(--white)}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:var(--black)}
+.btn.small{min-height:34px;padding:0 14px;font-size:13px}
+.btn.ghost{border-color:transparent;background:transparent;text-decoration:underline}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.card{background:var(--white);border:1px solid var(--g5);border-radius:var(--radius);padding:20px}
+.muted{color:var(--g2)}
+.tiny{font-size:12px}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.stack{display:flex;flex-direction:column;gap:12px}
+.grid2{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:24px;align-items:start}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;background:var(--g5);color:var(--g1)}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.gold{background:var(--gold-soft);color:#7A6223}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;display:inline-block}
+.notice{padding:12px 16px;border-radius:12px;background:var(--gold-soft);font-size:14px}
+.notice.bad{background:var(--bad-soft);color:var(--bad)}
+.section-title{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:4px}
+/* queue */
+.post{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:18px;align-items:start}
+.thumb{width:96px;height:120px;border-radius:10px;background:var(--g5);overflow:hidden;position:relative}
+.thumb img,.thumb video{width:100%;height:100%;object-fit:cover;display:block}
+.thumb .count{position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.7);color:#fff;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700}
+.post h3{margin:0 0 4px;font-size:16px;font-weight:800}
+.post .when{font-weight:700}
+.post .cap{color:var(--g2);font-size:14px;margin:6px 0 10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.results{display:flex;flex-direction:column;gap:4px;font-size:13px}
+.actions{display:flex;flex-direction:column;gap:8px;align-items:stretch}
+.empty{text-align:center;padding:40px 20px;color:var(--g2)}
+/* compose */
+.drop{border:2px dashed var(--g4);border-radius:var(--radius);padding:28px;text-align:center;background:var(--white);cursor:pointer;transition:border-color .15s}
+.drop.over{border-color:var(--gold);background:var(--gold-soft)}
+.files{display:flex;gap:12px;flex-wrap:wrap}
+.file{width:120px;display:flex;flex-direction:column;gap:6px}
+.file .thumb{width:120px;height:150px}
+.file .x{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(0,0,0,.75);color:#fff;cursor:pointer;font-weight:900}
+.bar{height:5px;border-radius:999px;background:var(--g5);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--gold);width:0}
+label.field{display:flex;flex-direction:column;gap:6px;font-weight:700;font-size:14px}
+input[type=text],input[type=datetime-local],select,textarea{border:1.5px solid var(--g4);border-radius:10px;padding:10px 12px;background:var(--white);width:100%}
+textarea{min-height:120px;resize:vertical;line-height:1.45}
+input:focus,select:focus,textarea:focus,.btn:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
+.platform{border:1.5px solid var(--g5);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.platform.on{border-color:var(--black)}
+.platform .head{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+.platform .head label{display:flex;align-items:center;gap:10px;font-weight:800;cursor:pointer}
+.platform input[type=checkbox]{width:18px;height:18px;accent-color:var(--black)}
+.ttbox{border-top:1px solid var(--g5);padding-top:10px;display:flex;flex-direction:column;gap:10px}
+.ttbox .opt{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}
+.ttbox .opt input{flex:none}
+.ttbox .opt.off{opacity:.45;cursor:not-allowed}
+.ttbox .who{display:flex;align-items:center;gap:10px;font-size:14px}
+.ttbox .who img{width:32px;height:32px;border-radius:50%;object-fit:cover;background:var(--g5)}
+.declare{font-size:13px;color:var(--g1)}
+.declare a{color:inherit;font-weight:700}
+.counter{font-size:12px;color:var(--g3);text-align:right}
+.counter.over{color:var(--bad);font-weight:700}
+.checks li{margin:4px 0}
+.seg{align-self:flex-start;display:inline-flex;border:1.5px solid var(--black);border-radius:999px;overflow:hidden}
+.seg button{border:0;background:var(--white);padding:8px 16px;font-weight:700;cursor:pointer}
+.seg button.on{background:var(--black);color:var(--white)}
+/* calendar */
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid var(--g5);border-left:1px solid var(--g5);background:var(--white);border-radius:var(--radius);overflow:hidden}
+.cal .dow{padding:10px;font-size:12px;font-weight:800;color:var(--g2);border-right:1px solid var(--g5);border-bottom:1px solid var(--g5);background:var(--bg)}
+.cal .day{min-height:112px;padding:8px;border-right:1px solid var(--g5);border-bottom:1px solid var(--g5);display:flex;flex-direction:column;gap:4px}
+.cal .day.out{background:var(--bg);color:var(--g3)}
+.cal .day.today .n{background:var(--gold);color:var(--black);border-radius:999px;padding:0 7px}
+.cal .n{font-size:12px;font-weight:800;align-self:flex-start}
+.cal .ev{border:0;text-align:left;border-radius:8px;padding:4px 6px;font-size:12px;font-weight:700;cursor:pointer;background:var(--black);color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal .ev.done{background:var(--ok-soft);color:var(--ok)}
+.cal .ev.failed,.cal .ev.partial{background:var(--bad-soft);color:var(--bad)}
+.cal .ev.draft{background:var(--white);color:var(--ink);border:1.5px dashed var(--warn)}
+.cal .ev.cancelled{background:var(--g5);color:var(--g3);text-decoration:line-through}
+/* accounts */
+.accts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.acct .name{font-size:18px;font-weight:900;margin:6px 0 2px;word-break:break-word}
+.bars{display:flex;flex-direction:column;gap:6px}
+.bars .b{display:grid;grid-template-columns:56px 1fr 40px;gap:10px;align-items:center;font-size:13px}
+.bars .b i{display:block;height:10px;border-radius:999px;background:var(--gold)}
+/* modal + toast */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+.modal .card{max-width:640px;width:100%;max-height:90vh;overflow:auto}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--black);color:var(--white);padding:12px 20px;border-radius:999px;font-weight:700;z-index:30;max-width:calc(100% - 32px)}
+.toast.bad{background:var(--bad)}
+.spin{width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:sp 0.8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (max-width:900px){
+  .app{flex-direction:column;background:var(--bg)}
+  nav.side{width:auto;flex:none;height:auto;position:static;padding:14px 16px;flex-direction:row;align-items:center;gap:12px;flex-wrap:wrap}
+  .brand b{font-size:26px}.brand span,.me{display:none}
+  .navlinks{flex-direction:row;flex-wrap:wrap}
+  .navlinks a{min-height:38px;padding:0 12px;font-size:14px}
+  main{padding:24px 16px 80px}
+  .grid2{grid-template-columns:1fr}
+  .post{grid-template-columns:72px minmax(0,1fr)}
+  .post .thumb{width:72px;height:90px}
+  .post .actions{grid-column:1/-1;flex-direction:row;flex-wrap:wrap}
+  .cal .day{min-height:76px;padding:4px}
+  .cal .ev{font-size:10px;padding:2px 4px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="side" aria-label="Main">
+    <div class="brand"><b>Scheduler</b><span>IG · FB · TIKTOK</span></div>
+    <div class="navlinks">
+      <a href="#queue" data-route="queue"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Queue</a>
+      <a href="#new" data-route="new"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>New post</a>
+      <a href="#calendar" data-route="calendar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendar</a>
+      <a href="#accounts" data-route="accounts"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Accounts</a>
+    </div>
+    <div class="me"><div class="av" aria-hidden="true">SC</div><div><b>Szymon Cabaj</b><small>REALTOR® · Realty ONE Group</small></div></div>
+  </nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+<div id="layer"></div>
+
+<script>
+"use strict";
+const $ = (s, el = document) => el.querySelector(s);
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const NAMES = {instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok"};
+const FORMAT_NAMES = {feed: "Photo post", reel: "Reel", story: "Story", carousel: "Carousel", post: "Photo post", video: "Video", draft: "Draft to inbox", direct: "Post directly"};
+const STATUS = {pending: ["Approved · scheduled", "gold"], done: ["Posted", "ok"], partial: ["Partly posted", "warn"], failed: ["Failed", "bad"], cancelled: ["Cancelled", ""]};
+const FAIR_HOUSING = ["adults only", "no children", "no kids", "perfect for families", "ideal for families", "singles", "bachelor", "christian", "exclusive neighborhood", "safe neighborhood", "walking distance to church", "mature", "able-bodied", "no wheelchairs", "english speaking"];
+const BROKERAGE = "realty one group";
+
+let openId = null;
+const S = {posts: [], status: null, best: null, loading: true, error: "", month: null, compose: null, creator: null};
+// Served by the laptop (http://127.0.0.1:8765) or from the published copy on github.io, which talks to the laptop.
+const LOCAL = "http://127.0.0.1:8765";
+const BASE = location.protocol === "https:" ? LOCAL : "";
+const OFFLINE = "Can't reach the Scheduler on this computer. Start it with py -m scheduler.web, and if Chrome asks, allow this site to connect to your computer.";
+
+async function api(path, opts = {}) {
+  const init = {method: opts.method || "GET", headers: {}};
+  if (opts.body !== undefined) {
+    init.method = opts.method || "POST";
+    init.headers["Content-Type"] = "application/json";
+    init.body = JSON.stringify(opts.body);
+  }
+  if (init.method !== "GET") init.headers["X-Scheduler"] = "1";
+  let r;
+  try { r = await fetch(BASE + path, {...init, targetAddressSpace: "loopback"}); }
+  catch (e) { throw new Error(OFFLINE); }
+  let data = {};
+  try { data = await r.json(); } catch (e) {}
+  if (!r.ok) throw new Error(data.error || `Request failed (${r.status})`);
+  return data;
+}
+
+function toast(msg, bad) {
+  const t = document.createElement("div");
+  t.className = "toast" + (bad ? " bad" : "");
+  t.setAttribute("role", "status");
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), bad ? 6000 : 3500);
+}
+
+function modal(html, onMount) {
+  openId = null;
+  const layer = $("#layer");
+  layer.innerHTML = `<div class="modal" role="dialog" aria-modal="true"><div class="card">${html}</div></div>`;
+  const m = layer.firstElementChild;
+  const close = () => { layer.innerHTML = ""; document.removeEventListener("keydown", onKey); };
+  const onKey = e => { if (e.key === "Escape") close(); };
+  document.addEventListener("keydown", onKey);
+  m.addEventListener("click", e => { if (e.target === m || e.target.closest("[data-close]")) close(); });
+  onMount && onMount(m.firstElementChild, close);
+  const f = m.querySelector("button, input, textarea, select");
+  f && f.focus();
+  return close;
+}
+
+// ---------- data ----------
+let pollTimer = null;
+async function loadPosts(quiet) {
+  try {
+    const d = await api("/api/posts");
+    S.posts = d.posts; S.error = "";
+  } catch (e) {
+    S.error = e.message;
+  }
+  S.loading = false;
+  if (!quiet || ["queue", "calendar"].includes(route()) || (route() === "review" && !S.compose)) render();
+  else { const nb = $('.navlinks a[data-route="queue"] .badge'); const n = S.posts.filter(p => p.status === "pending" && !p.approved).length; if (nb) { nb.textContent = n || ""; nb.hidden = !n; } }
+  refreshOpenPost();
+  clearTimeout(pollTimer);
+  const busy = S.posts.some(p => p.publishing);
+  pollTimer = setTimeout(() => loadPosts(true), busy ? 4000 : 60000);
+}
+async function loadStatus() {
+  S.status = null; if (route() === "accounts") render();
+  try { S.status = await api("/api/status"); } catch (e) { S.status = {error: e.message}; }
+  if (route() === "accounts") render();
+}
+async function loadBest() {
+  if (S.best) return S.best;
+  try { S.best = await api("/api/best-times"); } catch (e) { S.best = {hours: [], error: e.message}; }
+  return S.best;
+}
+
+// ---------- shared bits ----------
+function thumb(media) {
+  const m = media[0];
+  if (!m) return `<div class="thumb"></div>`;
+  const inner = m.type === "video"
+    ? `<video src="${esc(m.url)}#t=0.5" muted preload="metadata" playsinline></video>`
+    : `<img src="${esc(m.url)}" alt="" loading="lazy">`;
+  return `<div class="thumb">${inner}${media.length > 1 ? `<span class="count">${media.length}</span>` : ""}</div>`;
+}
+function statusChip(p) {
+  if (p.status === "pending" && !p.approved) return `<span class="chip warn"><span class="dot"></span>Needs approval</span>`;
+  if (p.publishing) return `<span class="chip gold"><span class="spin"></span> Publishing</span>`;
+  if (p.status === "pending" && Object.keys(p.results).length && !Object.values(p.results).some(r => r.status !== "done") && Date.parse(p.scheduled_for) <= Date.now()) {
+    const left = Object.keys(p.platforms).filter(k => !p.results[k]).map(k => NAMES[k]);
+    return `<span class="chip gold"><span class="dot"></span>Sending · ${esc(left.join(", "))} next</span>`;
+  }
+  if (p.status === "pending" && Object.values(p.results).some(r => r.status === "done")) {
+    const left = Object.keys(p.platforms).filter(k => !(p.results[k] && p.results[k].status === "done")).map(k => NAMES[k]);
+    return `<span class="chip warn"><span class="dot"></span>Partly posted · ${esc(left.join(", "))} still to go</span>`;
+  }
+  const [label, cls] = STATUS[p.status] || [p.status, ""];
+  return `<span class="chip ${cls}"><span class="dot"></span>${label}</span>`;
+}
+function firstCaption(p) {
+  for (const k of ["instagram", "facebook", "tiktok"]) if (p.targets[k] && p.targets[k].caption) return p.targets[k].caption;
+  return "";
+}
+function resultLine(p, k) {
+  const r = p.results[k];
+  const fmt = FORMAT_NAMES[p.platforms[k]] || p.platforms[k];
+  if (!r) return `<div><b>${NAMES[k]}</b> <span class="muted">· ${esc(fmt)}${Object.keys(p.results).length && p.status === "pending" && !p.publishing ? " · not sent yet, it goes out on GitHub's next run" : ""}</span></div>`;
+  if (r.status === "done") {
+    const link = p.links[k];
+    const what = k === "tiktok" && r.mode === "draft" ? "in your TikTok inbox, open the app and tap Post" : "posted";
+    return `<div><b>${NAMES[k]}</b> <span class="chip ok">✓ ${what}</span> ${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">View</a>` : ""}</div>`;
+  }
+  return `<div><b>${NAMES[k]}</b> <span class="chip bad">${r.attempts >= 3 ? "Gave up" : "Will retry"}</span> <span class="muted">${esc(r.error || "")}</span></div>`;
+}
+function postCard(p, opts = {}) {
+  const pending = p.status === "pending";
+  const started = Object.keys(p.results).length > 0;
+  const failed = Object.values(p.results).some(r => r.status !== "done");
+  let acts = "";
+  if (pending && !p.approved) {
+    acts = `<button class="btn small gold" data-act="review">Review</button>
+      <button class="btn small danger" data-act="delete">Delete</button>`;
+  } else if (pending && !p.publishing && !started) {
+    acts = `<button class="btn small primary" data-act="publish">Post now</button>
+      <button class="btn small" data-act="reschedule">Change time</button>
+      <button class="btn small" data-act="review">Edit</button>
+      <button class="btn small danger" data-act="cancel">Cancel</button>`;
+  } else if (pending && !p.publishing && failed) {
+    acts = `<button class="btn small primary" data-act="publish">Retry what failed</button>
+      <button class="btn small danger" data-act="cancel">Stop retrying</button>`;
+  } else if (p.status === "cancelled") {
+    acts = `<button class="btn small danger" data-act="delete">Delete</button>`;
+  }
+  return `<article class="card post" data-id="${esc(p.id)}">
+    ${thumb(p.media)}
+    <div style="min-width:0">
+      <div class="row" style="gap:8px">${statusChip(p)}<span class="when">${esc(p.when_local)}</span></div>
+      <h3 style="margin-top:8px">${esc(p.title || "Untitled post")}</h3>
+      <div class="cap">${esc(firstCaption(p))}</div>
+      <div class="results">${Object.keys(p.platforms).map(k => resultLine(p, k)).join("")}</div>
+    </div>
+    <div class="actions">
+      ${acts}
+      ${opts.close ? `<button class="btn small ghost" data-close>Close</button>` : ""}
+    </div>
+  </article>`;
+}
+
+async function postAction(id, act, after) {
+  const p = S.posts.find(x => x.id === id);
+  if (!p) return;
+  if (act === "review") { location.hash = "#review/" + id; return; }
+  if (act === "delete") {
+    modal(`<h2>Delete this post?</h2><p class="muted">“${esc(p.title || firstCaption(p).slice(0, 80) || "Untitled")}” is removed from the scheduler. Nothing was posted, so nothing changes on Instagram, Facebook or TikTok.</p>
+      <div class="row" style="justify-content:flex-end"><button class="btn" data-close>Keep it</button><button class="btn primary" id="yes">Delete</button></div>`,
+      (el, close) => $("#yes", el).onclick = async () => {
+        try { await api(`/api/posts/${id}/delete`, {body: {}}); toast("Deleted."); close(); after && after(); if (route() === "review") location.hash = "#queue"; loadPosts(); }
+        catch (e) { toast(e.message, true); }
+      });
+    return;
+  }
+  if (act === "cancel") {
+    modal(`<h2>Cancel this post?</h2><p class="muted">“${esc(p.title || firstCaption(p).slice(0, 80) || "Untitled")}” won't go out. You can't undo this, but you can make the post again.</p>
+      <div class="row" style="justify-content:flex-end"><button class="btn" data-close>Keep it</button><button class="btn primary" id="yes">Cancel post</button></div>`,
+      (el, close) => $("#yes", el).onclick = async () => {
+        try { await api(`/api/posts/${id}/cancel`, {body: {}}); toast("Post cancelled."); close(); after && after(); loadPosts(); }
+        catch (e) { toast(e.message, true); }
+      });
+  } else if (act === "reschedule") {
+    modal(`<h2>Change the time</h2><p class="muted">Arizona time.</p>
+      <label class="field">New time<input type="datetime-local" id="t" value="${esc(p.local_input)}"></label>
+      <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn" data-close>Back</button><button class="btn primary" id="yes">Save time</button></div>`,
+      (el, close) => $("#yes", el).onclick = async () => {
+        try { await api(`/api/posts/${id}/reschedule`, {body: {when: $("#t", el).value}}); toast("Time changed."); close(); after && after(); loadPosts(); }
+        catch (e) { toast(e.message, true); }
+      });
+  } else if (act === "publish") {
+    modal(`<h2>Post this now?</h2><p class="muted">It goes out on ${Object.keys(p.platforms).map(k => NAMES[k]).join(", ")} right away${p.platforms.tiktok === "draft" ? " (TikTok as a draft in your inbox)" : ""}. Keep this page open until it says Posted. Videos can take a couple of minutes.</p>
+      <div class="row" style="justify-content:flex-end"><button class="btn" data-close>Not yet</button><button class="btn primary" id="yes">Post now</button></div>`,
+      (el, close) => $("#yes", el).onclick = async () => {
+        try { await api(`/api/posts/${id}/publish`, {body: {}}); toast("Publishing…"); close(); after && after(); loadPosts(); }
+        catch (e) { toast(e.message, true); }
+      });
+  }
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]");
+  if (!b) return;
+  const card = b.closest("[data-id]");
+  if (card) postAction(card.dataset.id, b.dataset.act);
+});
+
+function bindPostModal(el, close, id) {
+  el.querySelectorAll("[data-act]").forEach(btn => btn.onclick = e => { e.stopPropagation(); close(); postAction(id, btn.dataset.act); });
+}
+function openPost(id) {
+  const p = S.posts.find(x => x.id === id);
+  if (!p) return;
+  modal(postCard(p, {close: true}), (el, close) => bindPostModal(el, () => { openId = null; close(); }, id));
+  openId = id;
+}
+function refreshOpenPost() {
+  const card = $("#layer .modal .card");
+  if (!openId || !card) { openId = null; return; }
+  const p = S.posts.find(x => x.id === openId);
+  if (!p) return;
+  card.innerHTML = postCard(p, {close: true});
+  bindPostModal(card, () => { openId = null; $("#layer").innerHTML = ""; }, openId);
+}
+
+// ---------- views ----------
+function viewQueue() {
+  const now = Date.now();
+  const busy = S.posts.filter(p => p.publishing);
+  const drafts = S.posts.filter(p => p.status === "pending" && !p.approved);
+  const upcoming = S.posts.filter(p => p.status === "pending" && p.approved && !p.publishing);
+  const recent = S.posts.filter(p => p.status !== "pending" && now - Date.parse(p.scheduled_for) < 30 * 864e5).reverse().slice(0, 20);
+  const overdue = upcoming.filter(p => Date.parse(p.scheduled_for) < now && !Object.keys(p.results).length);
+  return `
+  <header class="top">
+    <div><div class="eyebrow">Queue</div><h1>What's going out</h1></div>
+    <div class="row"><button class="btn" id="refresh">Refresh</button><a class="btn primary" href="#new">New post</a></div>
+  </header>
+  ${S.error ? `<div class="notice bad">${esc(S.error)}</div>` : ""}
+  ${overdue.length ? `<div class="notice">${overdue.length === 1 ? "One post is" : overdue.length + " posts are"} past their time. GitHub's timer can run up to about 30 minutes late. Press <b>Post now</b> if it can't wait.</div>` : ""}
+  ${drafts.length ? `<section class="stack"><div class="section-title"><h2>Needs your approval</h2><span class="muted tiny">Nothing here posts until you approve it</span></div>${drafts.map(p => postCard(p)).join("")}</section>` : ""}
+  ${busy.length ? `<section class="stack"><h2>Publishing now</h2>${busy.map(p => postCard(p)).join("")}</section>` : ""}
+  <section class="stack">
+    <div class="section-title"><h2>Coming up</h2><span class="muted tiny">Times are Arizona time</span></div>
+    ${S.loading ? `<div class="card empty"><span class="spin"></span> Loading…</div>` :
+      upcoming.length ? upcoming.map(p => postCard(p)).join("") :
+      `<div class="card empty"><p><b>Nothing approved and scheduled.</b></p><p>Make a post here, or ask Claude to draft one for you.</p><a class="btn primary" href="#new">New post</a></div>`}
+  </section>
+  ${recent.length ? `<section class="stack"><h2>Recent</h2>${recent.map(p => postCard(p)).join("")}</section>` : ""}`;
+}
+
+function viewCalendar() {
+  const today = new Date();
+  const m = S.month || (S.month = new Date(today.getFullYear(), today.getMonth(), 1));
+  const first = new Date(m.getFullYear(), m.getMonth(), 1);
+  const start = new Date(first); start.setDate(1 - first.getDay());
+  const key = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const byDay = {};
+  for (const p of S.posts) (byDay[p.local_date] ||= []).push(p);
+  let cells = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => `<div class="dow">${d}</div>`).join("");
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start); d.setDate(start.getDate() + i);
+    if (i === 35 && d.getMonth() !== m.getMonth()) break;
+    const k = key(d);
+    const evs = (byDay[k] || []).map(p => {
+      const t = p.when_local.split(", ").pop();
+      const icons = Object.keys(p.platforms).map(x => ({instagram: "IG", facebook: "FB", tiktok: "TT"})[x]).join("·");
+      return `<button class="ev ${p.publishing ? "" : p.status === "pending" && !p.approved ? "draft" : p.status}" data-open="${esc(p.id)}" title="${esc(p.title || firstCaption(p))}">${esc(t)} ${icons}</button>`;
+    }).join("");
+    cells += `<div class="day ${d.getMonth() !== m.getMonth() ? "out" : ""} ${k === key(today) ? "today" : ""}"><span class="n">${d.getDate()}</span>${evs}</div>`;
+  }
+  const label = first.toLocaleDateString(undefined, {month: "long", year: "numeric"});
+  return `
+  <header class="top">
+    <div><div class="eyebrow">Calendar</div><h1>${esc(label)}</h1></div>
+    <div class="row"><button class="btn small" id="prev" aria-label="Previous month">←</button><button class="btn small" id="thismonth">Today</button><button class="btn small" id="next" aria-label="Next month">→</button><button class="btn" id="refresh">Refresh</button><a class="btn primary" href="#new">New post</a></div>
+  </header>
+  <div class="cal">${cells}</div>
+  <div class="row tiny muted"><span class="chip" style="background:#fff;border:1.5px dashed var(--warn)">Needs approval</span><span class="chip" style="background:#000;color:#fff">Approved</span><span class="chip ok">Posted</span><span class="chip bad">Failed</span><span class="chip">Cancelled</span></div>`;
+}
+
+function viewAccounts() {
+  const st = S.status;
+  const card = (title, ok, name, sub) => `<div class="card acct"><div class="row" style="justify-content:space-between"><span class="eyebrow" style="font-size:17px">${title}</span>${st ? `<span class="chip ${ok ? "ok" : "bad"}"><span class="dot"></span>${ok ? "Connected" : "Problem"}</span>` : `<span class="spin"></span>`}</div><div class="name">${esc(name || (st ? "—" : "Checking…"))}</div><div class="muted tiny">${esc(sub || "")}</div></div>`;
+  const meta = st && st.meta;
+  const tk = st && st.tiktok;
+  const best = S.best;
+  const max = best && best.hours.length ? Math.max(...best.hours.map(h => h.followers)) : 1;
+  return `
+  <header class="top">
+    <div><div class="eyebrow">Accounts</div><h1>Connections and rules</h1></div>
+    <div class="row"><button class="btn" id="recheck">Check again</button></div>
+  </header>
+  ${st && st.error ? `<div class="notice bad">${esc(st.error)}</div>` : ""}
+  <div class="accts">
+    ${card("Instagram", meta, meta && "@" + meta.instagram, st && st.meta_error)}
+    ${card("Facebook", meta, meta && meta.page, st && st.meta_error)}
+    ${card("TikTok", tk, tk && "@" + tk, st && (st.tiktok_error ? "Not connected: " + st.tiktok_error : "Send as a draft to your inbox, or post directly with the settings you choose."))}
+    ${card("Storage", st && st.queued_posts !== undefined, st && st.queued_posts !== undefined ? `${st.queued_posts} scheduled` : "", st && st.storage_error)}
+  </div>
+  <div class="grid2">
+    <section class="card stack">
+      <h2>Connect TikTok again</h2>
+      <p class="muted" style="margin:0">Only needed if TikTok shows a problem above. Sign in as szysellsaz. The page you land on shows a code, so paste it here within a few minutes.</p>
+      <div class="row"><button class="btn" id="ttlink">Open TikTok sign-in</button></div>
+      <div class="row"><input type="text" id="ttcode" placeholder="Paste the code" style="flex:1;min-width:180px" autocomplete="off"><button class="btn primary" id="ttgo">Connect</button></div>
+    </section>
+    <section class="card stack">
+      <h2>When your Instagram followers are online</h2>
+      ${!best ? `<div class="muted"><span class="spin"></span> Loading…</div>` : best.error ? `<div class="muted">${esc(best.error)}</div>` : !best.hours.length ? `<div class="muted">Instagram has no data for this yet. It appears once the account has enough followers.</div>` :
+        `<div class="bars">${best.hours.slice().sort((a, b) => hourNum(a.hour) - hourNum(b.hour)).map(h => `<div class="b"><span>${esc(h.hour)}</span><i style="width:${Math.max(4, h.followers / max * 100)}%"></i><span class="muted">${h.followers}</span></div>`).join("")}</div>`}
+    </section>
+  </div>
+  <section class="card stack">
+    <h2>Rules every post follows</h2>
+    <ul class="checks" style="margin:0;padding-left:20px">
+      <li>Every caption names <b>Realty ONE Group</b>. The page warns you if it's missing.</li>
+      <li>No wording that describes or excludes buyers by protected class (Fair Housing). The page flags common risky phrases.</li>
+      <li>Nothing goes out until you press <b>Approve</b>. Times are Arizona time.</li>
+      <li>TikTok posts either land in your TikTok inbox as drafts (you tap Post in the app) or post directly with the privacy and settings you pick.</li>
+      <li>Scheduled posts are published from GitHub every 20 minutes between 5 AM and 10 PM, so this laptop can be off.</li>
+    </ul>
+  </section>`;
+}
+function hourNum(h) { const [n, ap] = h.split(" "); return (+n % 12) + (ap === "PM" ? 12 : 0); }
+
+// ---------- compose ----------
+function newCompose() {
+  const t = new Date(Date.now() + 60 * 60e3); t.setMinutes(0, 0, 0);
+  const pad = n => String(n).padStart(2, "0");
+  return {
+    files: [], title: "", caption: "", firstComment: "",
+    on: {instagram: true, facebook: true, tiktok: true},
+    fmt: {instagram: "", facebook: "", tiktok: "draft"},
+    own: {instagram: false, facebook: false, tiktok: false},
+    caps: {instagram: "", facebook: "", tiktok: ""},
+    whenMode: "later", alsoStory: false,
+    tt: {privacy: "", comment: false, duet: false, stitch: false, disclose: false, organic: false, branded: false},
+    when: `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}T${pad(t.getHours())}:00`,
+    saving: false,
+  };
+}
+function composeFromPost(p) {
+  const c = newCompose();
+  c.editId = p.id; c.title = p.title || "";
+  c.files = p.media.map(m => ({name: m.name || m.url.split("/").pop(), type: m.type, preview: m.url, progress: 100, media: m, error: ""}));
+  const ks = Object.keys(p.targets);
+  const main = ks.map(k => p.targets[k]).find(t => t.caption && (t.format || "") !== "story") || {};
+  c.caption = main.caption || "";
+  for (const k of ["instagram", "facebook", "tiktok"]) {
+    const t = p.targets[k];
+    c.on[k] = !!t;
+    if (!t) continue;
+    if (k === "tiktok") c.fmt.tiktok = t.mode || "draft"; else c.fmt[k] = t.format || "";
+    if ((t.caption || "") !== c.caption && t.format !== "story") { c.own[k] = true; c.caps[k] = t.caption || ""; }
+  }
+  if (p.targets.instagram && p.targets.instagram.first_comment) c.firstComment = p.targets.instagram.first_comment;
+  const tt = p.targets.tiktok;
+  if (tt && tt.mode === "direct") c.tt = {privacy: tt.privacy_level || "", comment: !!tt.allow_comment, duet: !!tt.allow_duet, stitch: !!tt.allow_stitch,
+    disclose: !!(tt.brand_organic || tt.brand_content), organic: !!tt.brand_organic, branded: !!tt.brand_content};
+  c.when = p.local_input; c.whenMode = "later";
+  c.wasApproved = !!p.approved;
+  return c;
+}
+function kinds(c) { const ks = new Set(c.files.map(f => f.type)); return {videos: c.files.filter(f => f.type === "video").length, images: c.files.filter(f => f.type === "image").length, mixed: ks.size > 1}; }
+function options(c) {
+  const k = kinds(c), n = c.files.length;
+  const ig = [], fb = [], tt = [];
+  if (n === 1 && k.videos === 1) { ig.push("reel", "story"); fb.push("video", "story"); tt.push("draft", "direct"); }
+  else if (n === 1 && k.images === 1) { ig.push("feed", "story"); fb.push("post", "story"); }
+  else if (n >= 2 && n <= 10) { ig.push("carousel"); if (!k.videos) fb.push("post"); }
+  return {instagram: ig, facebook: fb, tiktok: tt};
+}
+function syncFormats(c) {
+  const o = options(c);
+  for (const k of ["instagram", "facebook", "tiktok"]) {
+    if (!o[k].includes(c.fmt[k])) c.fmt[k] = o[k][0] || "";
+  }
+}
+function isStory(c, k) { return k !== "tiktok" && c.fmt[k] === "story"; }
+// Platforms whose post, reel or carousel can also go out as full-screen stories.
+function storyTwin(c) {
+  const o = options(c), out = [];
+  if (c.on.instagram && o.instagram.length && ["reel", "feed", "carousel"].includes(c.fmt.instagram)) out.push("instagram");
+  if (c.on.facebook && o.facebook.length && ["video", "post"].includes(c.fmt.facebook)) out.push("facebook");
+  return out;
+}
+function storyInfo(c) {
+  const n = c.files.length, where = storyTwin(c).map(k => NAMES[k]).join(" and "), k = kinds(c);
+  const label = n > 1 ? `Also post as ${n} full-screen stories` : "Also post as a full-screen story";
+  const what = n > 1 ? `Each ${k.videos ? "file" : "photo"} becomes its own ${where} story, in order, starting 15 minutes after the post.`
+    : `The same ${k.videos ? "video" : "photo"} on ${where} Stories, 15 minutes after the post.`;
+  const fill = k.images ? " Photos that aren't tall get a blurred background so they fill the screen without cutting anything off." : "";
+  return {label, text: `${what}${fill} No caption.`, chip: n > 1 ? `${n} stories, from 15 min later` : "Story, 15 min later"};
+}
+function captionFor(c, k) { return c.own[k] ? c.caps[k] : c.caption; }
+// ---------- TikTok direct posting (TikTok's content sharing guidelines) ----------
+const PRIVACY = {PUBLIC_TO_EVERYONE: "Everyone", MUTUAL_FOLLOW_FRIENDS: "Friends", FOLLOWER_OF_CREATOR: "Followers", SELF_ONLY: "Only me"};
+const MUSIC_URL = "https://www.tiktok.com/legal/page/global/music-usage-confirmation/en";
+const BC_URL = "https://www.tiktok.com/legal/page/global/bc-policy/en";
+function isDirect(c) { const o = options(c); return c.on.tiktok && o.tiktok.includes("direct") && c.fmt.tiktok === "direct"; }
+async function loadCreator(force) {
+  if (S.creator && !force && Date.now() - S.creator.at < 60e3) return;
+  S.creator = {loading: true, at: Date.now()};
+  try { S.creator = {info: await api("/api/tiktok/creator"), at: Date.now()}; }
+  catch (e) { S.creator = {error: e.message, at: Date.now()}; }
+  if (["new", "review"].includes(route()) && S.compose && isDirect(S.compose)) render();
+}
+function ttProblems(c) {
+  const out = [], t = c.tt, cr = S.creator || {};
+  if (!cr.info) out.push(["bad", cr.error ? `TikTok: ${cr.error}` : "Checking your TikTok account…"]);
+  if (!t.privacy) out.push(["bad", "Choose who can see the TikTok video."]);
+  if (t.disclose && !t.organic && !t.branded) out.push(["bad", "You need to indicate if your content promotes yourself, a third party, or both."]);
+  if (t.branded && t.privacy === "SELF_ONLY") out.push(["bad", "Branded content visibility cannot be set to private."]);
+  const max = cr.info && cr.info.max_video_post_duration_sec, f = c.files[0];
+  if (max && f && f.duration && f.duration > max) out.push(["bad", `TikTok allows videos up to ${Math.floor(max / 60)}:${String(max % 60).padStart(2, "0")} for this account. This one is ${Math.round(f.duration)} seconds.`]);
+  out.push(["info", "After you post, TikTok can take a few minutes to process the video before it shows on your profile."]);
+  return out;
+}
+function ttLabel(t) { return t.branded ? "Paid partnership" : t.organic ? "Promotional content" : ""; }
+function declaration(c) {
+  if (!isDirect(c)) return "";
+  const music = `<a href="${MUSIC_URL}" target="_blank" rel="noopener">Music Usage Confirmation</a>`;
+  return `<div class="declare">By posting, you agree to TikTok's ${c.tt.branded ? `<a href="${BC_URL}" target="_blank" rel="noopener">Branded Content Policy</a> and ` : ""}${music}.</div>`;
+}
+function ttPanel(c) {
+  const cr = S.creator || {}, info = cr.info, t = c.tt;
+  if (!info) return `<div class="ttbox"><div class="muted tiny">${cr.error ? `<span style="color:var(--bad)">${esc(cr.error)}</span> <button class="btn small" id="ttretry">Try again</button>` : `<span class="spin"></span> Checking your TikTok account…`}</div></div>`;
+  const opts = info.privacy_level_options || [];
+  const box = (key, label, disabled) => `<label class="opt ${disabled ? "off" : ""}" ${disabled ? `title="Turned off in your TikTok settings"` : ""}><input type="checkbox" data-tt="${key}" ${t[key] && !disabled ? "checked" : ""} ${disabled ? "disabled" : ""}> ${label}</label>`;
+  return `<div class="ttbox">
+    <div class="who">${info.creator_avatar_url ? `<img src="${esc(info.creator_avatar_url)}" alt="">` : ""}<span>Posting to <b>${esc(info.creator_nickname || "")}</b> <span class="muted">@${esc(info.creator_username || "")}</span></span></div>
+    <label class="field tiny">Who can see this video
+      <select id="ttprivacy" aria-label="Who can see this video"><option value="" ${t.privacy ? "" : "selected"} disabled>Choose…</option>${opts.map(v => {
+        const block = v === "SELF_ONLY" && t.branded;
+        return `<option value="${esc(v)}" ${t.privacy === v ? "selected" : ""} ${block ? `disabled title="Branded content visibility cannot be set to private."` : ""}>${esc(PRIVACY[v] || v)}${block ? " (not allowed for branded content)" : ""}</option>`;
+      }).join("")}</select></label>
+    <div class="tiny" style="font-weight:700">Allow users to</div>
+    <div class="row">${box("comment", "Comment", info.comment_disabled)}${box("duet", "Duet", info.duet_disabled)}${box("stitch", "Stitch", info.stitch_disabled)}</div>
+    <label class="opt" style="font-weight:700"><input type="checkbox" data-tt="disclose" ${t.disclose ? "checked" : ""}> Disclose video content</label>
+    ${t.disclose ? `<div class="muted tiny">Turn on to disclose that this video promotes goods or services in exchange for something of value. Your video could promote yourself, a third party, or both.</div>
+      <label class="opt"><input type="checkbox" data-tt="organic" ${t.organic ? "checked" : ""}> <span><b>Your brand</b><br><span class="muted tiny">You are promoting yourself or your own business. This video will be classified as Brand Organic.</span></span></label>
+      <label class="opt ${t.privacy === "SELF_ONLY" ? "off" : ""}" ${t.privacy === "SELF_ONLY" ? `title="Branded content visibility cannot be set to private."` : ""}><input type="checkbox" data-tt="branded" ${t.branded ? "checked" : ""} ${t.privacy === "SELF_ONLY" ? "disabled" : ""}> <span><b>Branded content</b><br><span class="muted tiny">You are promoting another brand or a third party. This video will be classified as Branded Content.</span></span></label>
+      ${ttLabel(t) ? `<div class="notice tiny">Your photo/video will be labeled as '${ttLabel(t)}'</div>` : ""}` : ""}
+  </div>`;
+}
+const LIMITS = {instagram: 2200, facebook: 63206, tiktok: 2200};
+function checks(c) {
+  const o = options(c), out = [];
+  const active = ["instagram", "facebook", "tiktok"].filter(k => c.on[k] && o[k].length);
+  if (!c.files.length) out.push(["bad", "Add a photo or video."]);
+  if (c.files.some(f => f.error)) out.push(["bad", "Remove the files that failed to upload."]);
+  if (c.files.some(f => !f.media && !f.error)) out.push(["warn", "Waiting for uploads to finish…"]);
+  if (c.files.length && !active.length) out.push(["bad", c.files.length > 10 ? "Use 10 files or fewer." : "Pick at least one platform."]);
+  const stories = active.filter(k => isStory(c, k));
+  const twin = c.alsoStory ? storyTwin(c) : [];
+  if (twin.length) out.push(["info", `${storyInfo(c).text.replace(" No caption.", "")} Make sure Realty ONE Group is visible${kinds(c).videos ? ", and keep videos to 60 seconds or less" : ""}.`]);
+  if (stories.length) out.push(["info", `${stories.map(k => NAMES[k]).join(" and ")} ${stories.length > 1 ? "stories don't" : "story doesn't"} show a caption. Make sure Realty ONE Group is visible in the ${kinds(c).videos ? "video" : "photo"}.`]);
+  for (const k of active) {
+    if (isStory(c, k)) continue;
+    const cap = captionFor(c, k);
+    if (!cap.trim()) out.push(["bad", `${NAMES[k]} caption is empty.`]);
+    else if (!cap.toLowerCase().includes(BROKERAGE)) out.push(["bad", `${NAMES[k]} caption doesn't mention Realty ONE Group.`]);
+    if (cap.length > LIMITS[k]) out.push(["bad", `${NAMES[k]} caption is ${cap.length - LIMITS[k]} characters too long.`]);
+    const tags = (cap.match(/#\w+/g) || []).length;
+    if (k === "instagram" && tags > 30) out.push(["bad", "Instagram allows 30 hashtags at most."]);
+    const hits = FAIR_HOUSING.filter(w => cap.toLowerCase().includes(w));
+    if (hits.length) out.push(["warn", `${NAMES[k]}: double-check “${hits.join("”, “")}” for Fair Housing.`]);
+  }
+  if (c.on.tiktok && o.tiktok.length) {
+    if (isDirect(c)) out.push(...ttProblems(c));
+    else out.push(["info", "TikTok goes to your inbox as a draft. Open the app and tap Post."]);
+  }
+  if (c.whenMode === "later") {
+    const t = Date.parse(c.when);
+    if (!c.when || isNaN(t)) out.push(["bad", "Pick a date and time."]);
+    else if (t < Date.now() - 5 * 60e3) out.push(["bad", "That time is in the past."]);
+    else { const h = new Date(t).getHours(); if (h < 5 || h >= 22) out.push(["info", "Scheduled posts go out between 5 AM and 10 PM, so this one will publish at about 5 AM."]); }
+  }
+  return {list: out, ok: !out.some(x => x[0] === "bad" || (x[0] === "warn" && x[1].startsWith("Waiting"))), active};
+}
+
+function viewCompose() {
+  const c = S.compose || (S.compose = newCompose());
+  syncFormats(c);
+  const o = options(c);
+  const ch = checks(c);
+  const plat = k => {
+    const avail = o[k].length > 0;
+    const on = c.on[k] && avail;
+    const cap = captionFor(c, k);
+    return `<div class="platform ${on ? "on" : ""}">
+      <div class="head">
+        <label><input type="checkbox" data-on="${k}" ${on ? "checked" : ""} ${avail ? "" : "disabled"}> ${NAMES[k]}</label>
+        ${avail ? (o[k].length > 1 ? `<select data-fmt="${k}" aria-label="${NAMES[k]} format" style="width:auto">${o[k].map(f => `<option value="${f}" ${c.fmt[k] === f ? "selected" : ""}>${FORMAT_NAMES[f]}</option>`).join("")}</select>` : `<span class="chip">${FORMAT_NAMES[o[k][0]]}</span>`)
+          : `<span class="muted tiny">${!c.files.length ? "Add a file first" : k === "tiktok" ? "Needs exactly one video" : k === "facebook" ? "Photos only, or one video" : "Up to 10 files"}</span>`}
+      </div>
+      ${on && isStory(c, k) ? `<div class="muted tiny">Stories don't show a caption.</div>` : ""}
+      ${on && !isStory(c, k) ? `
+        <label class="row tiny" style="font-weight:600;cursor:pointer"><input type="checkbox" data-own="${k}" ${c.own[k] ? "checked" : ""}> Use a different caption for ${NAMES[k]}</label>
+        ${c.own[k] ? `<textarea data-cap="${k}" aria-label="${NAMES[k]} caption" placeholder="${NAMES[k]} caption">${esc(c.caps[k])}</textarea>` : ""}
+        <div class="counter ${cap.length > LIMITS[k] ? "over" : ""}" data-count="${k}">${cap.length} / ${LIMITS[k]}</div>
+        ${k === "instagram" ? `<label class="field tiny">First comment (optional, e.g. hashtags)<input type="text" id="fc" value="${esc(c.firstComment)}"></label>` : ""}
+        ${k === "tiktok" && isDirect(c) ? ttPanel(c) : ""}` : ""}
+    </div>`;
+  };
+  return `
+  <header class="top">
+    <div><div class="eyebrow">${c.editId ? "Review" : "New post"}</div><h1>${c.editId ? "Review and approve" : "Create a post"}</h1></div>
+    <div class="row">${c.editId ? `<a class="btn ghost" href="#queue">Back to the queue</a>` : `<button class="btn ghost" id="reset">Start over</button>`}</div>
+  </header>
+  <div class="grid2">
+    <div class="stack">
+      <section class="card stack">
+        <h2>1. Photos or video</h2>
+        ${c.editId ? `<div class="preview">${c.files.map(f => f.type === "video" ? `<video src="${esc(f.preview)}" controls preload="metadata" playsinline></video>` : `<a href="${esc(f.preview)}" target="_blank" rel="noopener"><img src="${esc(f.preview)}" alt="${esc(f.name)}"></a>`).join("")}</div>
+        <div class="muted tiny">To use different photos or video, delete this post and make a new one.</div>` : `
+        <div class="drop" id="drop" tabindex="0" role="button" aria-label="Add photos or videos">
+          <b>Drop photos or a video here</b><div class="muted tiny" style="margin-top:4px">or click to choose · JPG, PNG, MP4, MOV · up to 10 photos for a carousel</div>
+        </div>
+        <input type="file" id="pick" multiple accept=".jpg,.jpeg,.png,.webp,.mp4,.mov,.m4v,image/jpeg,image/png,image/webp,video/mp4,video/quicktime" hidden>
+        ${c.files.length ? `<div class="files">${c.files.map((f, i) => `
+          <div class="file">
+            <div class="thumb">${f.type === "video" ? `<video src="${esc(f.preview)}" muted preload="metadata" playsinline></video>` : `<img src="${esc(f.preview)}" alt="">`}
+              <button class="x" data-rm="${i}" aria-label="Remove ${esc(f.name)}">×</button></div>
+            <div class="tiny" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(f.name)}">${esc(f.name)}</div>
+            ${f.error ? `<div class="tiny" style="color:var(--bad)">${esc(f.error)}</div>` : f.media ? `<div class="tiny" style="color:var(--ok)">✓ Uploaded</div>` : `<div class="bar"><i style="width:${f.progress}%"></i></div>`}
+          </div>`).join("")}</div>` : ""}`}
+      </section>
+      <section class="card stack">
+        <h2>2. Caption</h2>
+        <label class="field">Name for this post (only you see it)<input type="text" id="title" value="${esc(c.title)}" placeholder="e.g. 123 Main St open house"></label>
+        <label class="field">Caption<textarea id="caption" placeholder="Write the caption. Include Realty ONE Group.">${esc(c.caption)}</textarea></label>
+        <div class="muted tiny">Tip: ask Claude to draft captions, then paste them here.</div>
+      </section>
+      <section class="card stack">
+        <h2>3. Where</h2>
+        ${plat("instagram")}${plat("facebook")}${plat("tiktok")}
+        ${storyTwin(c).length ? `<div class="platform ${c.alsoStory ? "on" : ""}"><div class="head"><label><input type="checkbox" id="alsostory" ${c.alsoStory ? "checked" : ""}> ${storyInfo(c).label}</label></div><div class="muted tiny">${storyInfo(c).text}</div></div>` : ""}
+      </section>
+    </div>
+    <div class="stack" style="position:sticky;top:20px">
+      <section class="card stack">
+        <h2>4. When</h2>
+        <div class="seg" role="group" aria-label="When"><button data-when="now" class="${c.whenMode === "now" ? "on" : ""}">Right now</button><button data-when="later" class="${c.whenMode === "later" ? "on" : ""}">Schedule</button></div>
+        ${c.whenMode === "later" ? `<label class="field">Date and time (Arizona)<input type="datetime-local" id="when" value="${esc(c.when)}"></label>
+          <div id="besttimes" class="row tiny"></div>` : `<div class="muted tiny">It starts publishing as soon as you approve. Keep this page open until it says Posted.</div>`}
+      </section>
+      <section class="card stack">
+        <h2>Checks</h2>
+        <ul class="checks" style="margin:0;padding-left:0;list-style:none">${ch.list.length ? ch.list.map(([lvl, msg]) => `<li><span class="chip ${lvl === "info" ? "" : lvl}">${lvl === "bad" ? "Fix" : lvl === "warn" ? "Check" : "Note"}</span> ${esc(msg)}</li>`).join("") : `<li><span class="chip ok">✓</span> Looks good.</li>`}</ul>
+        ${c.editId && c.wasApproved ? `<div class="notice tiny">This post is approved. Saving changes sends it back for approval.</div>` : ""}
+        ${declaration(c)}
+        <button class="btn gold" id="approve" ${ch.ok && !c.saving ? "" : "disabled"}>${c.saving ? `<span class="spin"></span> Saving…` : c.whenMode === "now" ? "Approve and post now" : "Approve and schedule"}</button>
+        <button class="btn" id="savedraft" ${draftOk(c) && !c.saving ? "" : "disabled"}>${c.editId ? "Save changes (not approved)" : "Save for review"}</button>
+        ${c.editId ? `<button class="btn ghost" id="deldraft" style="color:var(--bad)">${c.wasApproved ? "Cancel this post" : "Delete this post"}</button>` : ""}
+      </section>
+    </div>
+  </div>`;
+}
+
+function uploadFile(c, f) {
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", BASE + "/api/upload?name=" + encodeURIComponent(f.name));
+  xhr.setRequestHeader("X-Scheduler", "1");
+  xhr.upload.onprogress = e => { if (e.lengthComputable) { f.progress = Math.round(e.loaded / e.total * 100); const bar = document.querySelector(`.file:nth-child(${c.files.indexOf(f) + 1}) .bar i`); if (bar) bar.style.width = f.progress + "%"; } };
+  xhr.onload = () => {
+    let d = {}; try { d = JSON.parse(xhr.responseText); } catch (e) {}
+    if (xhr.status === 200) f.media = d; else f.error = d.error || "Upload failed.";
+    if (route() === "new") render();
+  };
+  xhr.onerror = () => { f.error = "Upload failed. Is the scheduler window still open?"; if (route() === "new") render(); };
+  xhr.send(f.file);
+}
+function addFiles(list) {
+  const c = S.compose;
+  for (const file of list) {
+    const ext = file.name.split(".").pop().toLowerCase();
+    const type = ["mp4", "mov", "m4v"].includes(ext) ? "video" : ["jpg", "jpeg", "png", "webp"].includes(ext) ? "image" : null;
+    if (!type) { toast(`${file.name}: use JPG, PNG, MP4 or MOV.`, true); continue; }
+    const f = {file, name: file.name, type, preview: URL.createObjectURL(file), progress: 0, media: null, error: ""};
+    c.files.push(f);
+    uploadFile(c, f);
+  }
+  render();
+}
+function bindCompose() {
+  const c = S.compose;
+  const drop = $("#drop"), pick = $("#pick");
+  if (drop) {
+    drop.onclick = () => pick.click();
+    drop.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick.click(); } };
+    pick.onchange = () => { addFiles(pick.files); pick.value = ""; };
+    drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+    drop.ondragleave = () => drop.classList.remove("over");
+    drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); addFiles(e.dataTransfer.files); };
+  }
+  document.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { c.files.splice(+b.dataset.rm, 1); render(); });
+  const soft = () => { // re-render only the parts that depend on text, keeping focus
+    const ch = checks(c);
+    const box = $(".checks", $("#approve").parentElement);
+    box.innerHTML = ch.list.length ? ch.list.map(([lvl, msg]) => `<li><span class="chip ${lvl === "info" ? "" : lvl}">${lvl === "bad" ? "Fix" : lvl === "warn" ? "Check" : "Note"}</span> ${esc(msg)}</li>`).join("") : `<li><span class="chip ok">✓</span> Looks good.</li>`;
+    $("#approve").disabled = !ch.ok || c.saving;
+    $("#savedraft").disabled = !draftOk(c) || c.saving;
+    document.querySelectorAll("[data-count]").forEach(el => { const k = el.dataset.count, n = captionFor(c, k).length; el.textContent = `${n} / ${LIMITS[k]}`; el.classList.toggle("over", n > LIMITS[k]); });
+  };
+  $("#title").oninput = e => { c.title = e.target.value; };
+  $("#caption").oninput = e => { c.caption = e.target.value; soft(); };
+  const fc = $("#fc"); if (fc) fc.oninput = e => { c.firstComment = e.target.value; };
+  document.querySelectorAll("[data-cap]").forEach(t => t.oninput = e => { c.caps[t.dataset.cap] = e.target.value; soft(); });
+  document.querySelectorAll("[data-on]").forEach(b => b.onchange = () => { c.on[b.dataset.on] = b.checked; render(); });
+  document.querySelectorAll("[data-own]").forEach(b => b.onchange = () => { const k = b.dataset.own; c.own[k] = b.checked; if (b.checked && !c.caps[k]) c.caps[k] = c.caption; render(); });
+  document.querySelectorAll("[data-fmt]").forEach(s => s.onchange = () => { c.fmt[s.dataset.fmt] = s.value; render(); });
+  const as = $("#alsostory"); if (as) as.onchange = () => { c.alsoStory = as.checked; render(); };
+  if (isDirect(c)) {
+    loadCreator();
+    const pv = $("#ttprivacy"); if (pv) pv.onchange = () => { c.tt.privacy = pv.value; render(); };
+    document.querySelectorAll("[data-tt]").forEach(b => b.onchange = () => {
+      c.tt[b.dataset.tt] = b.checked;
+      if (b.dataset.tt === "disclose" && !b.checked) { c.tt.organic = false; c.tt.branded = false; }
+      render();
+    });
+    const rt = $("#ttretry"); if (rt) rt.onclick = () => loadCreator(true);
+  }
+  for (const f of c.files) if (f.type === "video" && f.duration === undefined && f.preview) {
+    f.duration = null;
+    const v = document.createElement("video"); v.preload = "metadata"; v.src = f.preview;
+    v.onloadedmetadata = () => { f.duration = v.duration; if (isDirect(c)) render(); };
+  }
+  document.querySelectorAll("[data-when]").forEach(b => b.onclick = () => { c.whenMode = b.dataset.when; render(); });
+  const w = $("#when"); if (w) { w.onchange = w.oninput = e => { c.when = e.target.value; soft(); }; showBest(); }
+  const rs = $("#reset"); if (rs) rs.onclick = () => { S.compose = newCompose(); render(); };
+  $("#approve").onclick = approve;
+  $("#savedraft").onclick = () => submitCompose(false);
+  const dd = $("#deldraft"); if (dd) dd.onclick = () => postAction(c.editId, c.wasApproved ? "cancel" : "delete", () => { S.compose = null; location.hash = "#queue"; });
+}
+async function showBest() {
+  const box = $("#besttimes"); if (!box) return;
+  const b = await loadBest();
+  if (!b.hours.length || !$("#besttimes")) return;
+  const top = b.hours.slice(0, 3);
+  $("#besttimes").innerHTML = `<span class="muted">Followers most online:</span>` + top.map(h => `<button class="btn small" data-hour="${esc(h.hour)}">${esc(h.hour)}</button>`).join("");
+  document.querySelectorAll("[data-hour]").forEach(btn => btn.onclick = () => {
+    const c = S.compose; const date = (c.when || "").slice(0, 10) || new Date().toISOString().slice(0, 10);
+    c.when = `${date}T${String(hourNum(btn.dataset.hour)).padStart(2, "0")}:00`; render();
+  });
+}
+function buildTargets(c, active) {
+  const o = options(c), targets = {};
+  for (const k of active) {
+    const t = {caption: isStory(c, k) ? "" : captionFor(c, k)};
+    if (k === "tiktok") t.mode = c.fmt.tiktok || "draft"; else t.format = c.fmt[k] || o[k][0];
+    if (k === "instagram" && c.firstComment.trim()) t.first_comment = c.firstComment.trim();
+    if (k === "tiktok" && t.mode === "direct") {
+      const info = (S.creator && S.creator.info) || {};
+      Object.assign(t, {privacy_level: c.tt.privacy, allow_comment: c.tt.comment && !info.comment_disabled,
+        allow_duet: c.tt.duet && !info.duet_disabled, allow_stitch: c.tt.stitch && !info.stitch_disabled,
+        brand_organic: c.tt.disclose && c.tt.organic, brand_content: c.tt.disclose && c.tt.branded});
+    }
+    targets[k] = t;
+  }
+  return targets;
+}
+function activePlatforms(c) { const o = options(c); return ["instagram", "facebook", "tiktok"].filter(k => c.on[k] && o[k].length); }
+function draftOk(c) {
+  return c.files.length && c.files.every(f => f.media) && activePlatforms(c).length && (c.whenMode === "now" || (c.when && !isNaN(Date.parse(c.when))));
+}
+async function submitCompose(approveIt) {
+  const c = S.compose;
+  const targets = buildTargets(c, activePlatforms(c));
+  const now = approveIt && c.whenMode === "now";
+  const body = {targets, title: c.title, when: c.whenMode === "now" ? "now" : c.when, approve: approveIt, publish_now: now};
+  c.saving = true; render();
+  try {
+    const alsoStory = c.alsoStory && storyTwin(c).length > 0;
+    if (c.editId) await api(`/api/posts/${c.editId}/edit`, {body: {...body, also_story: alsoStory}});
+    else await api("/api/posts", {body: {...body, media: c.files.map(f => f.media), also_story: alsoStory}});
+    S.compose = null;
+    const extra = c.alsoStory && storyTwin(c).length ? (c.files.length > 1 ? " The stories are in the queue too." : " The story is in the queue too.") : "";
+    toast((approveIt ? (now ? "Approved. Publishing now…" : "Approved and scheduled.") : "Saved. It's waiting for your approval in the queue.") + extra);
+    location.hash = "#queue"; loadPosts();
+  } catch (e) { c.saving = false; render(); toast(e.message, true); }
+}
+function approve() {
+  const c = S.compose, ch = checks(c);
+  if (!ch.ok) return;
+  const targets = buildTargets(c, ch.active);
+  const whenText = c.whenMode === "now" ? "right now" : new Date(c.when).toLocaleString(undefined, {weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit"});
+  modal(`<h2>Approve this post?</h2>
+    <p class="muted">Going out <b>${esc(whenText)}</b> (Arizona time) with ${c.files.length === 1 ? "1 file" : c.files.length + " files"} on:</p>
+    <div class="stack">${ch.active.map(k => `<div class="platform on"><div class="head"><b>${NAMES[k]}</b><span class="chip">${FORMAT_NAMES[targets[k].format || targets[k].mode]}${targets[k].mode === "direct" ? " · " + esc(PRIVACY[targets[k].privacy_level] || "") : ""}</span></div><div style="white-space:pre-wrap;font-size:14px">${targets[k].format === "story" ? `<span class="muted">Story, no caption</span>` : esc(targets[k].caption)}</div></div>`).join("")}${c.alsoStory && storyTwin(c).length ? `<div class="platform on"><div class="head"><b>${storyTwin(c).map(k => NAMES[k]).join(" + ")}</b><span class="chip">${storyInfo(c).chip}</span></div><div class="muted tiny">Full screen, no caption.</div></div>` : ""}</div>
+    ${declaration(c) ? `<div style="margin-top:12px">${declaration(c)}</div>` : ""}
+    <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn" data-close>Keep editing</button><button class="btn gold" id="yes">Approve</button></div>`,
+    (el, close) => $("#yes", el).onclick = () => { close(); submitCompose(true); });
+}
+
+// ---------- routing ----------
+function route() { return (location.hash || "#queue").slice(1).split("/")[0]; }
+function routeArg() { return (location.hash || "").slice(1).split("/")[1] || ""; }
+function render() {
+  const r = route();
+  const navR = r === "review" ? "queue" : r;
+  document.querySelectorAll(".navlinks a").forEach(a => { a.classList.toggle("on", a.dataset.route === navR); a.toggleAttribute("aria-current", a.dataset.route === navR); });
+  const nDrafts = S.posts.filter(p => p.status === "pending" && !p.approved).length;
+  const qa = $('.navlinks a[data-route="queue"]'); if (qa) { let b = $(".badge", qa); if (!b) { b = document.createElement("span"); b.className = "badge"; qa.appendChild(b); } b.textContent = nDrafts || ""; b.hidden = !nDrafts; b.title = nDrafts + " waiting for approval"; }
+  const main = $("#main");
+  if (r === "new") {
+    if (!S.compose || S.compose.editId) S.compose = newCompose();
+    main.innerHTML = viewCompose(); bindCompose();
+  }
+  else if (r === "review") {
+    const id = routeArg();
+    if (!S.compose || S.compose.editId !== id) {
+      const p = S.posts.find(x => x.id === id);
+      if (!p) { main.innerHTML = S.loading ? `<div class="card empty"><span class="spin"></span> Loading…</div>` : `<div class="card empty"><p><b>That post isn't in the queue any more.</b></p><a class="btn primary" href="#queue">Back to the queue</a></div>`; return; }
+      if (p.status !== "pending" || Object.keys(p.results).length) { location.hash = "#queue"; toast("That post has already started going out.", true); return; }
+      S.compose = composeFromPost(p);
+    }
+    main.innerHTML = viewCompose(); bindCompose();
+  }
+  else if (r === "calendar") {
+    main.innerHTML = viewCalendar();
+    $("#prev").onclick = () => { S.month = new Date(S.month.getFullYear(), S.month.getMonth() - 1, 1); render(); };
+    $("#next").onclick = () => { S.month = new Date(S.month.getFullYear(), S.month.getMonth() + 1, 1); render(); };
+    $("#thismonth").onclick = () => { S.month = null; render(); };
+    $("#refresh").onclick = () => { toast("Refreshing…"); loadPosts(); };
+    document.querySelectorAll("[data-open]").forEach(b => b.onclick = () => {
+      const p = S.posts.find(x => x.id === b.dataset.open);
+      if (p) openPost(p.id);
+    });
+  }
+  else if (r === "accounts") {
+    main.innerHTML = viewAccounts();
+    $("#recheck").onclick = () => { loadStatus(); };
+    $("#ttlink").onclick = async () => { try { const d = await api("/api/tiktok/link"); window.open(d.url, "_blank", "noopener"); } catch (e) { toast(e.message, true); } };
+    $("#ttgo").onclick = async () => { try { await api("/api/tiktok/code", {body: {code: $("#ttcode").value}}); toast("TikTok connected."); loadStatus(); } catch (e) { toast(e.message, true); } };
+    if (!S.best) loadBest().then(() => route() === "accounts" && render());
+  }
+  else { main.innerHTML = viewQueue(); const rb = $("#refresh"); if (rb) rb.onclick = () => { toast("Refreshing…"); loadPosts(); }; }
+}
+window.addEventListener("hashchange", () => { render(); if (route() === "accounts" && !S.status) loadStatus(); $("#main").focus({preventScroll: true}); window.scrollTo(0, 0); });
+render();
+loadPosts();
+if (route() === "accounts") loadStatus();
+</script>
+</body>
+</html>
