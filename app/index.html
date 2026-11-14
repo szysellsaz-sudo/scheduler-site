@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Social Scheduler</title>
+<meta name="theme-color" content="#000000">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito+Sans:wght@400;600;700;900&display=swap">
 <style>
@@ -187,7 +188,14 @@ const S = {posts: [], status: null, best: null, loading: true, error: "", month:
 // Served by the laptop (http://127.0.0.1:8765) or from the published copy on github.io, which talks to the laptop.
 const LOCAL = "http://127.0.0.1:8765";
 const BASE = location.protocol === "https:" ? LOCAL : "";
-const OFFLINE = "Can't reach the Scheduler on this computer. Start it with py -m scheduler.web, and if Chrome asks, allow this site to connect to your computer.";
+// On the laptop the screens can be installed as an app (desktop icon, own window).
+if (location.protocol === "http:") {
+  for (const [rel, href] of [["manifest", "/manifest.webmanifest"], ["icon", "/icon-192.png"], ["apple-touch-icon", "/icon-192.png"]]) {
+    const l = document.createElement("link"); l.rel = rel; l.href = href; document.head.appendChild(l);
+  }
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+const OFFLINE = "Can't reach the Scheduler on this computer. Double-click the Social Scheduler icon on your desktop, and if Chrome asks, allow this site to connect to your computer.";
 
 async function api(path, opts = {}) {
   const init = {method: opts.method || "GET", headers: {}};
