@@ -36,6 +36,7 @@ nav.side{width:240px;flex:0 0 240px;background:var(--black);color:var(--white);p
 .me{margin-top:auto;display:flex;gap:12px;align-items:center;padding:0 10px}
 .me .av{width:42px;height:42px;border-radius:50%;border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;background:var(--g1)}
 .me small{display:block;color:var(--g4);font-size:12px}
+.ver{padding:10px 10px 0;color:var(--g4);font-size:11px;letter-spacing:.02em}
 main{flex:1;min-width:0;padding:36px 44px 80px;display:flex;flex-direction:column;gap:28px}
 header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}
 .eyebrow{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.1em;color:var(--g2)}
@@ -144,7 +145,7 @@ input:focus,select:focus,textarea:focus,.btn:focus-visible,a:focus-visible{outli
 @media (max-width:900px){
   .app{flex-direction:column;background:var(--bg)}
   nav.side{width:auto;flex:none;height:auto;position:static;padding:14px 16px;flex-direction:row;align-items:center;gap:12px;flex-wrap:wrap}
-  .brand b{font-size:26px}.brand span,.me{display:none}
+  .brand b{font-size:26px}.brand span,.me,.ver{display:none}
   .navlinks{flex-direction:row;flex-wrap:wrap}
   .navlinks a{min-height:38px;padding:0 12px;font-size:14px}
   main{padding:24px 16px 80px}
@@ -168,6 +169,7 @@ input:focus,select:focus,textarea:focus,.btn:focus-visible,a:focus-visible{outli
       <a href="#accounts" data-route="accounts"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Accounts</a>
     </div>
     <div class="me"><div class="av" aria-hidden="true">SC</div><div><b>Szymon Cabaj</b><small>REALTOR® · Realty ONE Group</small></div></div>
+    <div class="ver" id="ver"></div>
   </nav>
   <main id="main" tabindex="-1"></main>
 </div>
@@ -254,6 +256,52 @@ async function loadPosts(quiet) {
   clearTimeout(pollTimer);
   const busy = S.posts.some(p => p.publishing);
   pollTimer = setTimeout(() => loadPosts(true), busy ? 4000 : 60000);
+}
+// ---------- version and updates ----------
+function buildWhen(b) {
+  const m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})-/.exec(b || "");
+  if (!m) return "";
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]));
+  return d.toLocaleString(undefined, {month: "short", day: "numeric", hour: "numeric", minute: "2-digit"});
+}
+function versionText(v) {
+  if (!v) return "";
+  if (v.error) return "Version: older copy (before updates)";
+  const when = buildWhen(v.build);
+  return `Version ${v.version}${when ? " · " + when : v.build === "dev" ? " · installed by hand" : ""}`;
+}
+async function loadVersion() {
+  try { S.ver = await api("/api/version"); } catch (e) { S.ver = {error: e.message}; }
+  const el = $("#ver"); if (el) el.textContent = versionText(S.ver);
+  if (route() === "accounts") render();
+  return S.ver;
+}
+async function updateNow() {
+  try {
+    const d = await api("/api/update", {body: {}});
+    if (!d.updating) { toast("You already have the latest version."); return loadVersion(); }
+    toast("Updating… the Scheduler restarts in a few seconds.");
+    const from = S.ver && S.ver.build;
+    for (let i = 0; i < 40; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      try { const v = await api("/api/version"); if (v.build !== from) { location.reload(); return; } } catch (e) {}
+    }
+    toast("The update is taking longer than usual. Check again in a minute.", true);
+  } catch (e) { toast(e.message, true); }
+}
+function versionCard() {
+  const v = S.ver;
+  if (!v) return `<section class="card stack"><h2>This app</h2><div class="muted"><span class="spin"></span> Checking…</div></section>`;
+  const state = v.error ? "This copy is too old to update itself. Install the latest ZIP once and it will keep itself up to date after that."
+    : !v.auto_update ? "Automatic updates are off on this computer."
+    : v.update_error ? `The last update didn't install: ${v.update_error}`
+    : v.update_waiting ? "A new version is ready. It installs itself when you haven't used the screens for a few minutes, or press Update now."
+    : "Up to date. New versions install themselves when you're not using the screens.";
+  return `<section class="card stack"><h2>This app</h2>
+    <div class="row" style="justify-content:space-between"><b>${esc(versionText(v))}</b>${v.update_waiting ? `<span class="chip warn">Update ready</span>` : v.auto_update ? `<span class="chip ok">Up to date</span>` : ""}</div>
+    <div class="muted tiny">${esc(state)}</div>
+    ${v.auto_update ? `<div class="row"><button class="btn" id="updnow">${v.update_waiting ? "Update now" : "Check for updates"}</button></div>` : ""}
+  </section>`;
 }
 async function loadStatus() {
   S.status = null; if (route() === "accounts") render();
@@ -540,6 +588,7 @@ function viewAccounts() {
         `<div class="bars">${best.hours.slice().sort((a, b) => hourNum(a.hour) - hourNum(b.hour)).map(h => `<div class="b"><span>${esc(h.hour)}</span><i style="width:${Math.max(4, h.followers / max * 100)}%"></i><span class="muted">${h.followers}</span></div>`).join("")}</div>`}
     </section>
   </div>
+  ${versionCard()}
   <section class="card stack">
     <h2>Rules every post follows</h2>
     <ul class="checks" style="margin:0;padding-left:20px">
@@ -979,6 +1028,7 @@ function render() {
     $("#ttlink").onclick = async () => { try { const d = await api("/api/tiktok/link"); window.open(d.url, "_blank", "noopener"); } catch (e) { toast(e.message, true); } };
     $("#ttgo").onclick = async () => { try { await api("/api/tiktok/code", {body: {code: $("#ttcode").value}}); toast("TikTok connected."); loadStatus(); } catch (e) { toast(e.message, true); } };
     if (!S.best) loadBest().then(() => route() === "accounts" && render());
+    const un = $("#updnow"); if (un) un.onclick = () => { un.disabled = true; updateNow(); };
   }
   else {
     main.innerHTML = viewQueue(); const rb = $("#refresh"); if (rb) rb.onclick = () => { toast("Refreshing…"); loadPosts(); };
@@ -988,6 +1038,7 @@ function render() {
 window.addEventListener("hashchange", () => { render(); if (route() === "accounts" && !S.status) loadStatus(); $("#main").focus({preventScroll: true}); window.scrollTo(0, 0); });
 render();
 loadPosts();
+loadVersion(); setInterval(loadVersion, 10 * 60e3);
 if (route() === "accounts") loadStatus();
 </script>
 </body>
