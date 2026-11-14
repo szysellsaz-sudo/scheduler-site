@@ -300,7 +300,8 @@ function resultLine(p, k) {
   if (r.status === "done") {
     const link = p.links[k];
     const what = k === "tiktok" && r.mode === "draft" ? "in your TikTok inbox, open the app and tap Post" : "posted";
-    return `<div><b>${NAMES[k]}</b> <span class="chip ok">✓ ${what}</span> ${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">View</a>` : ""}</div>`;
+    const extra = [r.ai_note, r.warning].filter(Boolean).map(t => `<div class="tiny muted">${esc(t)}</div>`).join("");
+    return `<div><b>${NAMES[k]}</b> <span class="chip ok">✓ ${what}</span> ${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">View</a>` : ""}${extra}</div>`;
   }
   return `<div><b>${NAMES[k]}</b> <span class="chip bad">${r.attempts >= 3 ? "Gave up" : "Will retry"}</span> <span class="muted">${esc(r.error || "")}</span></div>`;
 }
@@ -346,7 +347,7 @@ function postCard(p, opts = {}) {
   return `<article class="card post" data-id="${esc(p.id)}">
     ${thumb(p.media)}
     <div style="min-width:0">
-      <div class="row" style="gap:8px">${statusChip(p)}<span class="when">${esc(p.when_local)}</span></div>
+      <div class="row" style="gap:8px">${statusChip(p)}${p.ai_generated ? `<span class="chip" title="Marked as made with AI">AI</span>` : ""}<span class="when">${esc(p.when_local)}</span></div>
       <h3 style="margin-top:8px">${esc(p.title || "Untitled post")}</h3>
       <div class="cap">${esc(firstCaption(p))}</div>
       <div class="results">${Object.keys(p.platforms).map(k => resultLine(p, k)).join("")}</div>
@@ -562,7 +563,7 @@ function newCompose() {
     fmt: {instagram: "", facebook: "", tiktok: "draft"},
     own: {instagram: false, facebook: false, tiktok: false},
     caps: {instagram: "", facebook: "", tiktok: ""},
-    whenMode: "later", alsoStory: false,
+    whenMode: "later", alsoStory: false, ai: false,
     tt: {privacy: "", comment: false, duet: false, stitch: false, disclose: false, organic: false, branded: false},
     when: `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}T${pad(t.getHours())}:00`,
     saving: false,
@@ -588,6 +589,7 @@ function composeFromPost(p) {
     disclose: !!(tt.brand_organic || tt.brand_content), organic: !!tt.brand_organic, branded: !!tt.brand_content};
   c.when = p.local_input; c.whenMode = "later";
   c.wasApproved = !!p.approved;
+  c.ai = !!p.ai_generated;
   return c;
 }
 function kinds(c) { const ks = new Set(c.files.map(f => f.type)); return {videos: c.files.filter(f => f.type === "video").length, images: c.files.filter(f => f.type === "image").length, mixed: ks.size > 1}; }
@@ -672,6 +674,15 @@ function ttPanel(c) {
       ${ttLabel(t) ? `<div class="notice tiny">Your photo/video will be labeled as '${ttLabel(t)}'</div>` : ""}` : ""}
   </div>`;
 }
+// What "Made with AI" does on each platform (TikTok and Instagram take a label from the API; Facebook doesn't).
+function aiNotes(c, active) {
+  const out = [];
+  if (active.includes("tiktok")) out.push(["info", isDirect(c) ? "TikTok will show \u201cCreator labeled as AI-generated\u201d."
+    : "TikTok drafts can't carry the AI label. In the app, turn on \u201cAI-generated content\u201d under More options before you tap Post."]);
+  if (active.includes("instagram")) out.push(["info", "Instagram gets the AI label. If Instagram refuses it, the post still goes out and the queue tells you to add it in the app."]);
+  if (active.includes("facebook")) out.push(["warn", "Facebook can't take the AI label from the Scheduler. Meta adds \u201cAI info\u201d itself when the file carries AI details. If it's missing after posting, add it in Facebook, or say it's AI in the caption."]);
+  return out;
+}
 const LIMITS = {instagram: 2200, facebook: 63206, tiktok: 2200};
 function checks(c) {
   const o = options(c), out = [];
@@ -695,6 +706,7 @@ function checks(c) {
     const hits = FAIR_HOUSING.filter(w => cap.toLowerCase().includes(w));
     if (hits.length) out.push(["warn", `${NAMES[k]}: double-check “${hits.join("”, “")}” for Fair Housing.`]);
   }
+  if (c.ai) out.push(...aiNotes(c, active));
   if (c.on.tiktok && o.tiktok.length) {
     if (isDirect(c)) out.push(...ttProblems(c));
     else out.push(["info", "TikTok goes to your inbox as a draft. Open the app and tap Post."]);
@@ -766,6 +778,7 @@ function viewCompose() {
         ${plat("instagram")}${plat("facebook")}${plat("tiktok")}
         ${c.editId && storiesOf(c.editId, c.title).length ? `<div class="platform"><div class="head"><b>Full-screen stories already scheduled</b></div><div class="muted tiny">${storiesOf(c.editId, c.title).map(x => esc(x.when_local)).join(" · ")}. To change them, edit or cancel the story posts in the queue.</div></div>` :
           storyTwin(c).length ? `<div class="platform ${c.alsoStory ? "on" : ""}"><div class="head"><label><input type="checkbox" id="alsostory" ${c.alsoStory ? "checked" : ""}> ${storyInfo(c).label}</label></div><div class="muted tiny">${storyInfo(c).text}</div></div>` : ""}
+        <div class="platform ${c.ai ? "on" : ""}"><div class="head"><label><input type="checkbox" id="aigen" ${c.ai ? "checked" : ""}> Made with AI</label></div><div class="muted tiny">Turn on when the photo or video was made or realistically changed with AI, like people, rooms or places that look real. The Scheduler adds each platform's AI label where it can.</div></div>
       </section>
     </div>
     <div class="stack" style="position:sticky;top:20px">
@@ -841,6 +854,7 @@ function bindCompose() {
   document.querySelectorAll("[data-own]").forEach(b => b.onchange = () => { const k = b.dataset.own; c.own[k] = b.checked; if (b.checked && !c.caps[k]) c.caps[k] = c.caption; render(); });
   document.querySelectorAll("[data-fmt]").forEach(s => s.onchange = () => { c.fmt[s.dataset.fmt] = s.value; render(); });
   const as = $("#alsostory"); if (as) as.onchange = () => { c.alsoStory = as.checked; render(); };
+  const ai = $("#aigen"); if (ai) ai.onchange = () => { c.ai = ai.checked; render(); };
   if (isDirect(c)) {
     loadCreator();
     const pv = $("#ttprivacy"); if (pv) pv.onchange = () => { c.tt.privacy = pv.value; render(); };
@@ -898,7 +912,7 @@ async function submitCompose(approveIt) {
   const c = S.compose;
   const targets = buildTargets(c, activePlatforms(c));
   const now = approveIt && c.whenMode === "now";
-  const body = {targets, title: c.title, when: c.whenMode === "now" ? "now" : c.when, approve: approveIt, publish_now: now};
+  const body = {targets, title: c.title, when: c.whenMode === "now" ? "now" : c.when, approve: approveIt, publish_now: now, ai_generated: !!c.ai};
   c.saving = true; render();
   try {
     const alsoStory = c.alsoStory && storyTwin(c).length > 0;
@@ -918,6 +932,7 @@ function approve() {
   modal(`<h2>Approve this post?</h2>
     <p class="muted">Going out <b>${esc(whenText)}</b> (Arizona time) with ${c.files.length === 1 ? "1 file" : c.files.length + " files"} on:</p>
     <div class="stack">${ch.active.map(k => `<div class="platform on"><div class="head"><b>${NAMES[k]}</b><span class="chip">${FORMAT_NAMES[targets[k].format || targets[k].mode]}${targets[k].mode === "direct" ? " · " + esc(PRIVACY[targets[k].privacy_level] || "") : ""}</span></div><div style="white-space:pre-wrap;font-size:14px">${targets[k].format === "story" ? `<span class="muted">Story, no caption</span>` : esc(targets[k].caption)}</div></div>`).join("")}${c.alsoStory && storyTwin(c).length ? `<div class="platform on"><div class="head"><b>${storyTwin(c).map(k => NAMES[k]).join(" + ")}</b><span class="chip">${storyInfo(c).chip}</span></div><div class="muted tiny">Full screen, no caption.</div></div>` : ""}</div>
+    ${c.ai ? `<div class="notice tiny" style="margin-top:12px">Marked as made with AI. It gets the AI label where the platform allows.</div>` : ""}
     ${declaration(c) ? `<div style="margin-top:12px">${declaration(c)}</div>` : ""}
     <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn" data-close>Keep editing</button><button class="btn gold" id="yes">Approve</button></div>`,
     (el, close) => $("#yes", el).onclick = () => { close(); submitCompose(true); });
