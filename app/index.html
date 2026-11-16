@@ -430,7 +430,8 @@ async function postAction(id, act, after) {
       });
   } else if (act === "reschedule") {
     modal(`<h2>Change the time</h2><p class="muted">Arizona time.</p>
-      <label class="field">New time<input type="datetime-local" id="t" value="${esc(p.local_input)}"></label>
+      <label class="field">New time<input type="datetime-local" id="t" value="${esc(p.local_input)}" max="${esc(p.latest_input || "")}"></label>
+      ${p.latest_local ? `<p class="muted tiny">Latest possible: ${esc(p.latest_local)} (files are kept online for 7 days).</p>` : ""}
       <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn" data-close>Back</button><button class="btn primary" id="yes">Save time</button></div>`,
       (el, close) => $("#yes", el).onclick = async () => {
         try { await api(`/api/posts/${id}/reschedule`, {body: {when: $("#t", el).value}}); toast("Time changed."); close(); after && after(); loadPosts(); }
@@ -637,6 +638,7 @@ function composeFromPost(p) {
   if (tt && tt.mode === "direct") c.tt = {privacy: tt.privacy_level || "", comment: !!tt.allow_comment, duet: !!tt.allow_duet, stitch: !!tt.allow_stitch,
     disclose: !!(tt.brand_organic || tt.brand_content), organic: !!tt.brand_organic, branded: !!tt.brand_content};
   c.when = p.local_input; c.whenMode = "later";
+  c.latest = p.latest;
   c.wasApproved = !!p.approved;
   c.ai = !!p.ai_generated;
   return c;
@@ -733,6 +735,20 @@ function aiNotes(c, active) {
   return out;
 }
 const LIMITS = {instagram: 2200, facebook: 63206, tiktok: 2200};
+// Uploaded files are deleted after 7 days, so a post can be scheduled at most 6 days after its first upload.
+const WINDOW_MS = 6 * 864e5;
+function latestFor(c) {
+  if (c.latest) return Date.parse(c.latest);
+  const ups = c.files.map(f => f.media && f.media.uploaded_at ? Date.parse(f.media.uploaded_at) : Date.now());
+  return (ups.length ? Math.min(...ups) : Date.now()) + WINDOW_MS;
+}
+function localInput(ms) {
+  const d = new Date(ms), pad = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function niceTime(ms) {
+  return new Date(ms).toLocaleString(undefined, {weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit"});
+}
 function checks(c) {
   const o = options(c), out = [];
   const active = ["instagram", "facebook", "tiktok"].filter(k => c.on[k] && o[k].length);
@@ -764,6 +780,7 @@ function checks(c) {
     const t = Date.parse(c.when);
     if (!c.when || isNaN(t)) out.push(["bad", "Pick a date and time."]);
     else if (t < Date.now() - 5 * 60e3) out.push(["bad", "That time is in the past."]);
+    else if (t > latestFor(c)) out.push(["bad", `That's too far ahead. Uploaded files are kept online for 7 days, so this post can go out until ${niceTime(latestFor(c))} at the latest. Pick an earlier time, or make the post closer to the date.`]);
     else { const h = new Date(t).getHours(); if (h < 5 || h >= 22) out.push(["info", "Scheduled posts go out between 5 AM and 10 PM, so this one will publish at about 5 AM."]); }
   }
   return {list: out, ok: !out.some(x => x[0] === "bad" || (x[0] === "warn" && x[1].startsWith("Waiting"))), active};
@@ -834,7 +851,8 @@ function viewCompose() {
       <section class="card stack">
         <h2>4. When</h2>
         <div class="seg" role="group" aria-label="When"><button data-when="now" class="${c.whenMode === "now" ? "on" : ""}">Right now</button><button data-when="later" class="${c.whenMode === "later" ? "on" : ""}">Schedule</button></div>
-        ${c.whenMode === "later" ? `<label class="field">Date and time (Arizona)<input type="datetime-local" id="when" value="${esc(c.when)}"></label>
+        ${c.whenMode === "later" ? `<label class="field">Date and time (Arizona)<input type="datetime-local" id="when" value="${esc(c.when)}" max="${esc(localInput(latestFor(c)))}"></label>
+          <div class="muted tiny">Up to 6 days ahead (latest ${esc(niceTime(latestFor(c)))}). Files are kept online for 7 days.</div>
           <div id="besttimes" class="row tiny"></div>` : `<div class="muted tiny">It starts publishing as soon as you approve. Keep this page open until it says Posted.</div>`}
       </section>
       <section class="card stack">
