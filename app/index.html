@@ -142,7 +142,40 @@ input:focus,select:focus,textarea:focus,.btn:focus-visible,a:focus-visible{outli
 .toast.bad{background:var(--bad)}
 .spin{width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:sp 0.8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
+/* Queue timeline */
+.qseg{display:flex;gap:8px;align-items:center}
+.qseg button{min-height:36px;padding:0 16px;border-radius:999px;border:1.5px solid var(--black);background:var(--white);font-weight:800;font-size:14px;cursor:pointer}
+.qseg button[aria-pressed="true"]{background:var(--black);color:var(--white)}
+.apbanner{display:flex;align-items:center;gap:14px;background:#FBEFC9;border:1.5px solid #E6C75A;border-radius:12px;padding:12px 16px}
+.apbanner .n{width:32px;height:32px;border-radius:50%;background:var(--gold);font-weight:900;display:flex;align-items:center;justify-content:center;flex:none}
+.apbanner .t{flex:1;font-weight:800}.apbanner .t span{display:block;font-size:13px;font-weight:600;color:#6B5200}
+.tldays{display:flex;flex-direction:column;gap:6px}
+.tlday{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:900;margin:10px 0 4px}
+.tlday .count{font-size:12px;font-weight:800;background:var(--g5);border-radius:999px;padding:2px 9px}
+.tl{display:grid;grid-template-columns:84px 18px minmax(0,1fr)}
+.tl-time{font-weight:800;font-size:14px;text-align:right;padding:20px 12px 0 0;white-space:nowrap}
+.tl-rail{position:relative}
+.tl-rail::before{content:"";position:absolute;left:8px;top:0;bottom:0;width:2px;background:var(--g5)}
+.tl-rail i{position:absolute;left:3px;top:23px;width:12px;height:12px;border-radius:50%;background:var(--black);border:2px solid var(--bg)}
+.tl.draft .tl-rail i{background:var(--gold)}.tl.done .tl-rail i{background:var(--ok)}.tl.bad .tl-rail i{background:var(--bad)}.tl.off .tl-rail i{background:var(--g4)}
+.tl-card{display:flex;gap:14px;align-items:center;padding:12px 14px;margin:5px 0 5px 10px}
+.tl.child .tl-card{margin-left:44px;border-left:3px solid var(--gold);background:#FCFAF4}
+.tl.draft .tl-card{border:1.5px solid #E6C75A;background:#FFFCF2}
+.tl-card .thumb{width:52px;height:64px;flex:none}
+.tl-card .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.tl-card .ttl{font-size:16px;font-weight:800}
+.tl-card .tlacts{display:flex;gap:8px;align-items:center;flex:none}
+.dest{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:13px}
+.dest>div{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.dest .err{flex-basis:100%;color:var(--bad);font-size:12px}
+.pi{width:20px;height:20px;border-radius:6px;color:#fff;font-size:9px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.pi.instagram{background:linear-gradient(135deg,#F58529,#DD2A7B 50%,#8134AF)}.pi.facebook{background:#1877F2}.pi.tiktok{background:#111;box-shadow:inset -2px 0 0 #25F4EE,inset 2px 0 0 #FE2C55}
+.morebtn{width:36px;height:36px;border-radius:50%;border:1.5px solid var(--g4);background:var(--white);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-weight:900;letter-spacing:1px}
 @media (max-width:900px){
+  .tl{grid-template-columns:64px 14px minmax(0,1fr)}
+  .tl-card{flex-wrap:wrap}
+  .tl.child .tl-card{margin-left:24px}
+
   .app{flex-direction:column;background:var(--bg)}
   nav.side{width:auto;flex:none;height:auto;position:static;padding:14px 16px;flex-direction:row;align-items:center;gap:12px;flex-wrap:wrap}
   .brand b{font-size:26px}.brand span,.me,.ver{display:none}
@@ -186,7 +219,7 @@ const FAIR_HOUSING = ["adults only", "no children", "no kids", "perfect for fami
 const BROKERAGE = "realty one group";
 
 let openId = null;
-const S = {posts: [], status: null, best: null, loading: true, error: "", month: null, compose: null, creator: null};
+const S = {qtab: "upcoming", posts: [], status: null, best: null, loading: true, error: "", month: null, compose: null, creator: null};
 // Served by the laptop (http://127.0.0.1:8765) or from the published copy on github.io, which talks to the laptop.
 const LOCAL = "http://127.0.0.1:8765";
 const BASE = location.protocol === "https:" ? LOCAL : "";
@@ -412,6 +445,11 @@ async function postAction(id, act, after) {
   const p = S.posts.find(x => x.id === id);
   if (!p) return;
   if (act === "review") { location.hash = "#review/" + id; return; }
+  if (act === "copytt") {
+    try { await navigator.clipboard.writeText(ttDraftCaption(p)); toast("TikTok caption copied. Paste it into the draft in your TikTok inbox."); }
+    catch (e) { modal(`<h2>TikTok caption</h2><p class="muted">Copying didn't work here. Select the text and copy it.</p><textarea readonly style="width:100%;min-height:160px">${esc(ttDraftCaption(p))}</textarea><div class="row" style="justify-content:flex-end"><button class="btn" data-close>Done</button></div>`); }
+    return;
+  }
   if (act === "delete") {
     modal(`<h2>Delete this post?</h2><p class="muted">“${esc(p.title || firstCaption(p).slice(0, 80) || "Untitled")}” is removed from the scheduler. Nothing was posted, so nothing changes on Instagram, Facebook or TikTok.</p>
       <div class="row" style="justify-content:flex-end"><button class="btn" data-close>Keep it</button><button class="btn primary" id="yes">Delete</button></div>`,
@@ -503,28 +541,90 @@ function byDay(posts) {
   return days;
 }
 
+// Queue as a timeline. Upcoming = everything still to go out (drafts included, at their time), Recent = what went out.
+const PLATFORM_ORDER = ["instagram", "facebook", "tiktok"];
+const PI = {instagram: "IG", facebook: "FB", tiktok: "TT"};
+const pIcon = k => `<span class="pi ${k}" aria-hidden="true">${PI[k]}</span>`;
+function fmtName(p, k) { return FORMAT_NAMES[p.platforms[k]] || p.platforms[k] || ""; }
+function destResult(p, k) {
+  const r = (p.results || {})[k];
+  if (!r) return p.status === "pending" ? "" : `<span class="chip">Not sent</span>`;
+  if (r.status === "done") {
+    const link = p.links[k];
+    return `<span class="chip ok">✓ ${k === "tiktok" && r.mode === "draft" ? "In your TikTok inbox" : "Posted"}</span>${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">View</a>` : ""}`;
+  }
+  return `<span class="chip bad">${r.attempts >= 3 ? "Failed" : "Will retry"}</span>${r.error ? `<span class="err">${esc(r.error)}</span>` : ""}`;
+}
+function destLines(p, recent) {
+  return `<div class="dest">${PLATFORM_ORDER.filter(k => p.platforms[k]).map(k =>
+    `<div>${pIcon(k)}<b>${NAMES[k]}</b>${recent ? "" : `<span class="muted">${esc(fmtName(p, k))}</span>`}${destResult(p, k)}</div>`).join("")}</div>`;
+}
+// TikTok inbox drafts can't carry a caption, so offer it to paste.
+function ttDraftCaption(p) {
+  const r = (p.results || {}).tiktok || {}, t = (p.targets || {}).tiktok;
+  if (!t || !t.caption || p.status === "cancelled" || r.status === "failed") return "";
+  return (r.mode || t.mode || "draft") === "draft" ? t.caption : "";
+}
+function storyName(p) { const m = (p.title || "").match(/\(story( \d+\/\d+)?\)$/); return "Story" + (m && m[1] ? m[1] : ""); }
+function tlKind(p) {
+  if (p.status === "pending") return p.approved ? "" : "draft";
+  return p.status === "done" ? "done" : p.status === "cancelled" ? "off" : "bad";
+}
+function tlRow(p, recent) {
+  const draft = p.status === "pending" && !p.approved;
+  const parent = storyParent(p);
+  const started = Object.keys(p.results).length > 0;
+  const showChip = recent ? p.status !== "done" : draft || p.publishing || started || Date.parse(p.scheduled_for) <= Date.now();
+  const chips = [showChip ? statusChip(p) : "", p.ai_generated ? `<span class="chip" title="Marked as made with AI">AI</span>` : ""].filter(Boolean).join(" ");
+  const btns = [];
+  if (draft) btns.push(`<button class="btn small gold" data-act="review">Review</button>`);
+  if (recent && ttDraftCaption(p)) btns.push(`<button class="btn small gold" data-act="copytt">Copy TikTok caption</button>`);
+  return `<div class="tl ${tlKind(p)}${parent ? " child" : ""}" data-id="${esc(p.id)}">
+    <div class="tl-time">${esc(p.when_local.split(", ")[1] || p.when_local)}</div><div class="tl-rail"><i></i></div>
+    <article class="card tl-card">${thumb(p.media)}
+      <div class="info">
+        <div class="row" style="gap:8px"><span class="ttl">${parent ? esc(storyName(p)) : esc(p.title || "Untitled post")}</span>${chips}</div>
+        ${parent ? `<div class="tiny muted">For <b>${esc(parent.title || "Untitled post")}</b></div>` : ""}
+        ${destLines(p, recent)}
+      </div>
+      <div class="tlacts">${btns.join("")}<button class="morebtn" data-open="${esc(p.id)}" aria-label="All actions for this post" title="Post now, Change time, Edit, Cancel">⋯</button></div>
+    </article>
+  </div>`;
+}
+function timeline(posts, recent) {
+  const today = new Intl.DateTimeFormat("en-US", {timeZone: "America/Phoenix", weekday: "short", month: "short", day: "numeric"}).format(new Date()).replace(",", "");
+  return `<div class="tldays">${byDay(posts).map(d => `<div><div class="tlday">${esc(d.day === today ? "Today · " + d.day : d.day)}<span class="count">${d.posts.length}</span></div>
+    ${d.posts.map(p => tlRow(p, recent)).join("")}</div>`).join("")}</div>`;
+}
 function viewQueue() {
   const now = Date.now();
-  const busy = S.posts.filter(p => p.publishing);
-  const drafts = S.posts.filter(p => p.status === "pending" && !p.approved);
-  const upcoming = S.posts.filter(p => p.status === "pending" && p.approved && !p.publishing);
-  const recent = S.posts.filter(p => p.status !== "pending" && now - Date.parse(p.scheduled_for) < 30 * 864e5).reverse().slice(0, 20);
-  const overdue = upcoming.filter(p => Date.parse(p.scheduled_for) < now && !Object.keys(p.results).length);
-  return `
-  <header class="top">
-    <div><div class="eyebrow">Queue</div><h1>What's going out</h1></div>
+  const byTime = (a, b) => a.scheduled_for.localeCompare(b.scheduled_for);
+  const pending = S.posts.filter(p => p.status === "pending").sort(byTime);
+  const drafts = pending.filter(p => !p.approved);
+  const recent = S.posts.filter(p => p.status !== "pending" && now - Date.parse(p.scheduled_for) < 14 * 864e5).sort(byTime).reverse().slice(0, 40);
+  const overdue = pending.filter(p => p.approved && !p.publishing && Date.parse(p.scheduled_for) < now && !Object.keys(p.results).length);
+  if (S.qtab === "approve" && !drafts.length && !S.loading) S.qtab = "upcoming";
+  const head = `<header class="top">
+    <div><div class="eyebrow">Queue</div><h1>${S.qtab === "approve" ? "Needs your approval" : "What's going out"}</h1></div>
     <div class="row"><button class="btn" id="refresh">Refresh</button><a class="btn primary" href="#new">New post</a></div>
-  </header>
+  </header>`;
+  if (S.qtab === "approve") {
+    return head + `<div class="row"><button class="btn small" data-qtab="upcoming">‹ Back to the queue</button><span class="muted tiny">Nothing here goes out until you approve it. Soonest first.</span></div>
+      <section class="stack">${drafts.map(p => postCard(p)).join("")}</section>`;
+  }
+  const isRecent = S.qtab === "recent";
+  return head + `
+  <div class="qseg" role="group" aria-label="Show">
+    <button data-qtab="upcoming" aria-pressed="${!isRecent}">Upcoming${pending.length ? " " + pending.length : ""}</button>
+    <button data-qtab="recent" aria-pressed="${isRecent}">Recent</button>
+    <span class="muted tiny" style="margin-left:8px">${isRecent ? "Last 14 days, newest first." : "Times are Arizona time. ⋯ opens Post now, Change time, Edit and Cancel."}</span>
+  </div>
   ${S.error ? `<div class="notice bad">${esc(S.error)}</div>` : ""}
-  ${overdue.length ? `<div class="notice">${overdue.length === 1 ? "One post is" : overdue.length + " posts are"} past their time. GitHub's timer can run up to about 30 minutes late. Press <b>Post now</b> if it can't wait.</div>` : ""}
-  ${drafts.length ? sec("drafts", "Needs your approval", drafts.length, drafts.map(p => postCard(p)).join(""), {sub: "Nothing here posts until you approve it"}) : ""}
-  ${busy.length ? `<section class="stack"><h2>Publishing now</h2>${busy.map(p => postCard(p)).join("")}</section>` : ""}
-  ${sec("upcoming", "Coming up", S.loading ? null : upcoming.length,
-    S.loading ? `<div class="card empty"><span class="spin"></span> Loading…</div>` :
-      upcoming.length ? byDay(upcoming).map(d => sec("day:" + d.day, d.day, d.posts.length, d.posts.map(p => postCard(p)).join(""), {small: true})).join("") :
-      `<div class="card empty"><p><b>Nothing approved and scheduled.</b></p><p>Make a post here, or ask Claude to draft one for you.</p><a class="btn primary" href="#new">New post</a></div>`,
-    {sub: "Times are Arizona time"})}
-  ${recent.length ? sec("recent", "Recent", recent.length, recent.map(p => postCard(p)).join(""), {open: false}) : ""}`;
+  ${!isRecent && drafts.length ? `<div class="apbanner"><span class="n">${drafts.length}</span><div class="t">${drafts.length === 1 ? "1 post needs" : drafts.length + " posts need"} your approval<span>Nothing goes out until you approve it. ${drafts.length === 1 ? "It also sits" : "They also sit"} at ${drafts.length === 1 ? "its" : "their"} time below, outlined in gold.</span></div><button class="btn small gold" data-qtab="approve">Review all</button></div>` : ""}
+  ${!isRecent && overdue.length ? `<div class="notice">${overdue.length === 1 ? "One post is" : overdue.length + " posts are"} past their time. The scheduler checks every 5 minutes and GitHub takes a minute or two to post. Press <b>Post now</b> if it can't wait.</div>` : ""}
+  ${S.loading ? `<div class="card empty"><span class="spin"></span> Loading…</div>` : isRecent
+    ? (recent.length ? timeline(recent, true) : `<div class="card empty"><p><b>Nothing went out in the last 14 days.</b></p></div>`)
+    : (pending.length ? timeline(pending, false) : `<div class="card empty"><p><b>Nothing scheduled.</b></p><p>Make a post here, or ask Claude to draft one for you.</p><a class="btn primary" href="#new">New post</a></div>`)}`;
 }
 
 function viewCalendar() {
@@ -597,7 +697,7 @@ function viewAccounts() {
       <li>No wording that describes or excludes buyers by protected class (Fair Housing). The page flags common risky phrases.</li>
       <li>Nothing goes out until you press <b>Approve</b>. Times are Arizona time.</li>
       <li>TikTok posts either land in your TikTok inbox as drafts (you tap Post in the app) or post directly with the privacy and settings you pick.</li>
-      <li>Scheduled posts are published from GitHub every 20 minutes between 5 AM and 10 PM, so this laptop can be off.</li>
+      <li>The scheduler checks for due posts every 5 minutes between 5 AM and 10 PM and publishes them from GitHub, so this laptop can be off.</li>
     </ul>
   </section>`;
 }
@@ -1050,6 +1150,8 @@ function render() {
   }
   else {
     main.innerHTML = viewQueue(); const rb = $("#refresh"); if (rb) rb.onclick = () => { toast("Refreshing…"); loadPosts(); };
+    document.querySelectorAll("[data-qtab]").forEach(b => b.onclick = () => { S.qtab = b.dataset.qtab; render(); window.scrollTo(0, 0); });
+    document.querySelectorAll("[data-open]").forEach(b => b.onclick = () => openPost(b.dataset.open));
     document.querySelectorAll("[data-sec]").forEach(b => b.onclick = () => toggleSec(b.dataset.sec, b.dataset.dflt === "1"));
   }
 }
