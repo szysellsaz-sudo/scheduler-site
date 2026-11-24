@@ -144,6 +144,20 @@ input:focus,select:focus,textarea:focus,.btn:focus-visible,a:focus-visible{outli
 @keyframes sp{to{transform:rotate(360deg)}}
 /* Queue timeline */
 .qseg{display:flex;gap:8px;align-items:center}
+.stats{width:100%;border-collapse:separate;border-spacing:0;background:var(--white);border:1px solid var(--g5);border-radius:var(--radius);overflow:hidden}
+.stats th,.stats td{padding:14px 18px;text-align:left;vertical-align:top;border-bottom:1px solid var(--g5)}
+.stats tr:last-child th,.stats tr:last-child td{border-bottom:0}
+.stats thead th{background:var(--g5);font-weight:900;font-size:14px}
+.stats thead th small{display:block;font-weight:600;color:var(--g2);font-size:12px}
+.stats thead th.now{background:var(--black);color:var(--white)}
+.stats thead th.now small{color:var(--gold)}
+.stats tbody th{font-weight:800;width:150px}
+.stats td.now{background:var(--gold-soft)}
+.stats .n{font-size:28px;font-weight:900;line-height:1}
+.stats td.zero .n{color:var(--g4)}
+.stats .parts{display:flex;flex-direction:column;gap:2px;margin-top:6px;font-size:12px;font-weight:700;color:var(--g2)}
+.stats .parts .ok{color:var(--ok)}.stats .parts .bad{color:var(--bad)}.stats .parts .warn{color:var(--warn)}
+.stats tr.total th,.stats tr.total td{border-top:2px solid var(--g4)}
 .qseg button{min-height:36px;padding:0 16px;border-radius:999px;border:1.5px solid var(--black);background:var(--white);font-weight:800;font-size:14px;cursor:pointer}
 .qseg button[aria-pressed="true"]{background:var(--black);color:var(--white)}
 .apbanner{display:flex;align-items:center;gap:14px;background:#FBEFC9;border:1.5px solid #E6C75A;border-radius:12px;padding:12px 16px}
@@ -199,6 +213,7 @@ input:focus,select:focus,textarea:focus,.btn:focus-visible,a:focus-visible{outli
       <a href="#queue" data-route="queue"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Queue</a>
       <a href="#new" data-route="new"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>New post</a>
       <a href="#calendar" data-route="calendar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendar</a>
+      <a href="#stats" data-route="stats"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-6M3 20h18"/></svg>Stats</a>
       <a href="#accounts" data-route="accounts"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Accounts</a>
     </div>
     <div class="me"><div class="av" aria-hidden="true">SC</div><div><b>Szymon Cabaj</b><small>REALTOR® · Realty ONE Group</small></div></div>
@@ -219,7 +234,7 @@ const FAIR_HOUSING = ["adults only", "no children", "no kids", "perfect for fami
 const BROKERAGE = "realty one group";
 
 let openId = null;
-const S = {qtab: "upcoming", posts: [], status: null, best: null, loading: true, error: "", month: null, compose: null, creator: null};
+const S = {settings: {week_start: 0}, statShift: 0, qtab: "upcoming", posts: [], status: null, best: null, loading: true, error: "", month: null, compose: null, creator: null};
 // Served by the laptop (http://127.0.0.1:8765) or from the published copy on github.io, which talks to the laptop.
 const LOCAL = "http://127.0.0.1:8765";
 const BASE = location.protocol === "https:" ? LOCAL : "";
@@ -283,7 +298,7 @@ async function loadPosts(quiet) {
     S.error = e.message;
   }
   S.loading = false;
-  if (!quiet || ["queue", "calendar"].includes(route()) || (route() === "review" && !S.compose)) render();
+  if (!quiet || ["queue", "calendar", "stats"].includes(route()) || (route() === "review" && !S.compose)) render();
   else { const nb = $('.navlinks a[data-route="queue"] .badge'); const n = S.posts.filter(p => p.status === "pending" && !p.approved).length; if (nb) { nb.textContent = n || ""; nb.hidden = !n; } }
   refreshOpenPost();
   clearTimeout(pollTimer);
@@ -627,15 +642,100 @@ function viewQueue() {
     : (pending.length ? timeline(pending, false) : `<div class="card empty"><p><b>Nothing scheduled.</b></p><p>Make a post here, or ask Claude to draft one for you.</p><a class="btn primary" href="#new">New post</a></div>`)}`;
 }
 
+// ---------- weekly stats ----------
+// Weeks are counted on the post's Arizona date (local_date), so they line up with the calendar.
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const STAT_PLATFORMS = ["instagram", "facebook", "tiktok"];
+function keyParts(key) { const [y, m, d] = key.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)); }
+function addDays(key, n) { const t = keyParts(key); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); }
+function weekStartOf(key, ws) { return addDays(key, -((keyParts(key).getUTCDay() - ws + 7) % 7)); }
+function rangeLabel(a, b) {
+  const f = k => new Intl.DateTimeFormat("en-US", {timeZone: "UTC", month: "short", day: "numeric"}).format(keyParts(k));
+  return a.slice(0, 7) === b.slice(0, 7) ? `${f(a)}–${+b.slice(8)}` : `${f(a)} – ${f(b)}`;
+}
+function weekLabel(start) { return rangeLabel(start, addDays(start, 6)); }
+// Where one platform of one post stands: posted, failed, scheduled (approved), draft (needs approval), or null (cancelled).
+function platformState(p, k) {
+  const r = (p.results || {})[k];
+  if (r && r.status === "done") return "posted";
+  if (p.status === "cancelled") return null;
+  if (p.status === "pending") return p.approved ? "scheduled" : "draft";
+  return "failed";
+}
+function weekStats(posts, start) {
+  const end = addDays(start, 7);
+  const blank = () => ({total: 0, posted: 0, scheduled: 0, draft: 0, failed: 0, stories: 0});
+  const out = {all: blank()};
+  for (const k of STAT_PLATFORMS) out[k] = blank();
+  for (const p of posts) {
+    if (!p.local_date || p.local_date < start || p.local_date >= end) continue;
+    for (const k of Object.keys(p.platforms || {})) {
+      if (!out[k]) continue;
+      const st = platformState(p, k);
+      if (!st) continue;
+      for (const c of [out[k], out.all]) { c.total++; c[st]++; if (p.platforms[k] === "story") c.stories++; }
+    }
+  }
+  return out;
+}
+function statWeeks(todayK, ws, shift) {
+  const cur = addDays(weekStartOf(todayK, ws), 7 * shift);
+  return [-1, 0, 1].map(i => {
+    const start = addDays(cur, 7 * i), off = shift + i;
+    const name = off === 0 ? "This week" : off === -1 ? "Last week" : off === 1 ? "Next week" : off < 0 ? `${-off} weeks ago` : `In ${off} weeks`;
+    return {start, name, range: weekLabel(start), stats: weekStats(S.posts, start), now: off === 0};
+  });
+}
+function statParts(c) {
+  return [["posted", "posted", "ok"], ["scheduled", "scheduled", ""], ["draft", c.draft === 1 ? "needs approval" : "need approval", "warn"], ["failed", "failed", "bad"]]
+    .filter(([k]) => c[k]).map(([k, word, cls]) => ({n: c[k], word, cls}));
+}
+function todayKeyAZ() { return new Intl.DateTimeFormat("en-CA", {timeZone: "America/Phoenix", year: "numeric", month: "2-digit", day: "2-digit"}).format(new Date()); }
+async function loadSettings() {
+  try { S.settings = await api("/api/settings"); } catch (e) { return; }
+  if (["stats", "calendar", "accounts"].includes(route())) render();
+}
+async function saveWeekStart(v) {
+  const before = S.settings;
+  S.settings = {...S.settings, week_start: +v};
+  try { S.settings = await api("/api/settings", {body: {week_start: +v}}); toast(`Weeks now start on ${DAY_NAMES[S.settings.week_start]}.`); }
+  catch (e) { S.settings = before; toast(e.message, true); }
+  render();
+}
+function statCell(c, now) {
+  const cls = (now ? "now " : "") + (c.total ? "" : "zero");
+  const parts = statParts(c).map(x => `<span class="${x.cls}">${x.n} ${esc(x.word)}</span>`).join("");
+  const stories = c.stories ? `<span>incl. ${c.stories} ${c.stories === 1 ? "story" : "stories"}</span>` : "";
+  return `<td class="${cls}"><div class="n">${c.total}</div>${c.total ? `<div class="parts">${parts}${stories}</div>` : ""}</td>`;
+}
+function viewStats() {
+  const ws = S.settings.week_start;
+  const weeks = statWeeks(todayKeyAZ(), ws, S.statShift);
+  const rows = STAT_PLATFORMS.map(k => `<tr><th>${NAMES[k]}</th>${weeks.map(w => statCell(w.stats[k], w.now)).join("")}</tr>`).join("");
+  return `
+  <header class="top">
+    <div><div class="eyebrow">Stats</div><h1>Posts by week</h1></div>
+    <div class="row"><button class="btn small" id="sprev" aria-label="Earlier weeks">←</button>${S.statShift ? `<button class="btn small" id="snow">This week</button>` : ""}<button class="btn small" id="snext" aria-label="Later weeks">→</button><button class="btn" id="refresh">Refresh</button></div>
+  </header>
+  ${S.error ? `<div class="notice bad">${esc(S.error)}</div>` : ""}
+  ${S.loading ? `<div class="card empty"><span class="spin"></span> Loading…</div>` : `
+  <table class="stats">
+    <thead><tr><th></th>${weeks.map(w => `<th class="${w.now ? "now" : ""}">${esc(w.name)}<small>${esc(w.range)}</small></th>`).join("")}</tr></thead>
+    <tbody>${rows}<tr class="total"><th>All platforms</th>${weeks.map(w => statCell(w.stats.all, w.now)).join("")}</tr></tbody>
+  </table>`}
+  <p class="muted tiny" style="margin:0">Weeks start on <b>${DAY_NAMES[ws]}</b> (change it under <a href="#accounts">Accounts</a>). Arizona time. A post that goes to Instagram and Facebook counts once on each. Stories count as posts. Cancelled posts aren't counted.</p>`;
+}
+
 function viewCalendar() {
   const today = new Date();
   const m = S.month || (S.month = new Date(today.getFullYear(), today.getMonth(), 1));
   const first = new Date(m.getFullYear(), m.getMonth(), 1);
-  const start = new Date(first); start.setDate(1 - first.getDay());
+  const ws = S.settings.week_start;
+  const start = new Date(first); start.setDate(1 - (first.getDay() - ws + 7) % 7);
   const key = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const byDay = {};
   for (const p of S.posts) (byDay[p.local_date] ||= []).push(p);
-  let cells = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => `<div class="dow">${d}</div>`).join("");
+  let cells = [0, 1, 2, 3, 4, 5, 6].map(i => `<div class="dow">${DAY_NAMES[(i + ws) % 7].slice(0, 3)}</div>`).join("");
   for (let i = 0; i < 42; i++) {
     const d = new Date(start); d.setDate(start.getDate() + i);
     if (i === 35 && d.getMonth() !== m.getMonth()) break;
@@ -689,6 +789,12 @@ function viewAccounts() {
         `<div class="bars">${best.hours.slice().sort((a, b) => hourNum(a.hour) - hourNum(b.hour)).map(h => `<div class="b"><span>${esc(h.hour)}</span><i style="width:${Math.max(4, h.followers / max * 100)}%"></i><span class="muted">${h.followers}</span></div>`).join("")}</div>`}
     </section>
   </div>
+  <section class="card stack">
+    <h2>Preferences</h2>
+    <div class="row"><label for="weekstart"><b>Week starts on</b></label>
+      <select id="weekstart" style="width:auto">${DAY_NAMES.map((d, i) => `<option value="${i}" ${i === S.settings.week_start ? "selected" : ""}>${d}</option>`).join("")}</select>
+      <span class="muted tiny">Used by Stats and the Calendar, here and on the phone.</span></div>
+  </section>
   ${versionCard()}
   <section class="card stack">
     <h2>Rules every post follows</h2>
@@ -1140,8 +1246,16 @@ function render() {
       if (p) openPost(p.id);
     });
   }
+  else if (r === "stats") {
+    main.innerHTML = viewStats();
+    $("#sprev").onclick = () => { S.statShift--; render(); };
+    $("#snext").onclick = () => { S.statShift++; render(); };
+    const sn = $("#snow"); if (sn) sn.onclick = () => { S.statShift = 0; render(); };
+    $("#refresh").onclick = () => { toast("Refreshing…"); loadPosts(); loadSettings(); };
+  }
   else if (r === "accounts") {
     main.innerHTML = viewAccounts();
+    $("#weekstart").onchange = e => saveWeekStart(e.target.value);
     $("#recheck").onclick = () => { loadStatus(); };
     $("#ttlink").onclick = async () => { try { const d = await api("/api/tiktok/link"); window.open(d.url, "_blank", "noopener"); } catch (e) { toast(e.message, true); } };
     $("#ttgo").onclick = async () => { try { await api("/api/tiktok/code", {body: {code: $("#ttcode").value}}); toast("TikTok connected."); loadStatus(); } catch (e) { toast(e.message, true); } };
@@ -1158,6 +1272,7 @@ function render() {
 window.addEventListener("hashchange", () => { render(); if (route() === "accounts" && !S.status) loadStatus(); $("#main").focus({preventScroll: true}); window.scrollTo(0, 0); });
 render();
 loadPosts();
+loadSettings();
 loadVersion(); setInterval(loadVersion, 10 * 60e3);
 if (route() === "accounts") loadStatus();
 </script>
