@@ -158,6 +158,22 @@ input:focus,select:focus,textarea:focus,.btn:focus-visible,a:focus-visible{outli
 .stats .parts{display:flex;flex-direction:column;gap:2px;margin-top:6px;font-size:12px;font-weight:700;color:var(--g2)}
 .stats .parts .ok{color:var(--ok)}.stats .parts .bad{color:var(--bad)}.stats .parts .warn{color:var(--warn)}
 .stats tr.total th,.stats tr.total td{border-top:2px solid var(--g4)}
+.goals{display:flex;flex-direction:column;gap:16px}
+.gtitle{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.glist{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
+.grow{display:flex;flex-direction:column;gap:8px}
+.ghead{display:flex;justify-content:space-between;align-items:baseline}
+.gnum{font-size:28px;font-weight:900;line-height:1}.gnum small{font-size:16px;color:var(--g3);font-weight:800}
+.gbar{position:relative;display:flex;height:10px;border-radius:999px;background:var(--g5);overflow:hidden}
+.gbar i{display:block;height:100%}.gbar i.p,.glegend i.p{background:var(--ok)}.gbar i.s,.glegend i.s{background:var(--black)}.gbar i.d,.glegend i.d{background:var(--gold)}
+.gbar .mark{position:absolute;top:0;bottom:0;width:2px;background:var(--bad)}
+.gparts{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;font-weight:700;color:var(--g2)}
+.gparts .ok,.gstat.ok{color:var(--ok)}.gparts .warn,.gstat.warn{color:var(--warn)}.gparts .bad,.gstat.bad{color:var(--bad)}
+.gstat{font-size:13px;font-weight:800}
+.glegend{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center}.glegend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.goalin{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px}
+.goalin label{display:flex;flex-direction:column;gap:4px;font-weight:700;font-size:13px}
+.goalin input{border:1.5px solid var(--g4);border-radius:10px;padding:10px 12px;background:var(--white);width:100%}
 .qseg button{min-height:36px;padding:0 16px;border-radius:999px;border:1.5px solid var(--black);background:var(--white);font-weight:800;font-size:14px;cursor:pointer}
 .qseg button[aria-pressed="true"]{background:var(--black);color:var(--white)}
 .apbanner{display:flex;align-items:center;gap:14px;background:#FBEFC9;border:1.5px solid #E6C75A;border-radius:12px;padding:12px 16px}
@@ -234,7 +250,7 @@ const FAIR_HOUSING = ["adults only", "no children", "no kids", "perfect for fami
 const BROKERAGE = "realty one group";
 
 let openId = null;
-const S = {settings: {week_start: 0}, statShift: 0, qtab: "upcoming", posts: [], status: null, best: null, loading: true, error: "", month: null, compose: null, creator: null};
+const S = {goalDraft: {}, settings: {week_start: 0, goals: {}}, statShift: 0, qtab: "upcoming", posts: [], status: null, best: null, loading: true, error: "", month: null, compose: null, creator: null};
 // Served by the laptop (http://127.0.0.1:8765) or from the published copy on github.io, which talks to the laptop.
 const LOCAL = "http://127.0.0.1:8765";
 const BASE = location.protocol === "https:" ? LOCAL : "";
@@ -683,8 +699,53 @@ function statWeeks(todayK, ws, shift) {
   return [-1, 0, 1].map(i => {
     const start = addDays(cur, 7 * i), off = shift + i;
     const name = off === 0 ? "This week" : off === -1 ? "Last week" : off === 1 ? "Next week" : off < 0 ? `${-off} weeks ago` : `In ${off} weeks`;
-    return {start, name, range: weekLabel(start), stats: weekStats(S.posts, start), now: off === 0};
+    return {start, name, range: weekLabel(start), stats: weekStats(S.posts, start), now: off === 0, past: off < 0};
   });
+}
+// Weekly goals by kind of post. One post counts once per kind, whatever platforms it goes to, and the same video can
+// count as a reel (Instagram/Facebook) and as a TikTok.
+const GOAL_KINDS = [["reel", "Reels"], ["story", "Stories"], ["photo", "Photo posts"], ["tiktok", "TikToks"]];
+function postKinds(p) {
+  const f = p.platforms || {}, meta = [f.instagram, f.facebook].filter(Boolean), out = [];
+  if (meta.includes("story")) out.push("story");
+  else if (meta.includes("reel") || meta.includes("video")) out.push("reel");
+  else if (meta.length) out.push("photo");
+  if (f.tiktok) out.push("tiktok");
+  return out;
+}
+function kindState(p, kind) {
+  const ks = (kind === "tiktok" ? ["tiktok"] : ["instagram", "facebook"]).filter(k => (p.platforms || {})[k]);
+  const sts = ks.map(k => platformState(p, k)).filter(Boolean);
+  for (const st of ["posted", "scheduled", "draft", "failed"]) if (sts.includes(st)) return st;
+  return null;
+}
+function kindStats(posts, start) {
+  const end = addDays(start, 7), out = {};
+  for (const [k] of GOAL_KINDS) out[k] = {total: 0, posted: 0, scheduled: 0, draft: 0, failed: 0};
+  for (const p of posts) {
+    if (!p.local_date || p.local_date < start || p.local_date >= end) continue;
+    for (const k of postKinds(p)) { const st = kindState(p, k); if (st) { out[k].total++; out[k][st]++; } }
+  }
+  return out;
+}
+// Where a kind stands against its goal: [text, "ok" | "warn" | "bad" | ""].
+function goalStatus(c, goal, past) {
+  if (!goal) return ["No goal set", ""];
+  const lined = c.posted + c.scheduled;
+  if (c.posted >= goal) return [c.posted > goal ? `Goal met, ${c.posted - goal} extra` : "Goal met", "ok"];
+  if (past) return [`Missed by ${goal - c.posted}`, "bad"];
+  if (lined >= goal) return [`On track: ${c.scheduled} still scheduled`, "ok"];
+  if (lined + c.draft >= goal) {
+    const n = goal - lined;
+    return [`Approve ${n === c.draft ? (n === 1 ? "the 1 post" : `all ${n} posts`) : `${n} of the ${c.draft} posts`} waiting to reach it`, "warn"];
+  }
+  return [`${goal - lined - c.draft} short: schedule ${goal - lined - c.draft === 1 ? "1 more" : goal - lined - c.draft + " more"}`, "bad"];
+}
+function goalBar(c, goal) {
+  const base = Math.max(goal || 0, c.posted + c.scheduled + c.draft, 1);
+  const seg = (n, cls) => n ? `<i class="${cls}" style="width:${n / base * 100}%"></i>` : "";
+  const mark = goal && goal < base ? `<b class="mark" style="left:${goal / base * 100}%"></b>` : "";
+  return `<div class="gbar" aria-hidden="true">${seg(c.posted, "p")}${seg(c.scheduled, "s")}${seg(c.draft, "d")}${mark}</div>`;
 }
 function statParts(c) {
   return [["posted", "posted", "ok"], ["scheduled", "scheduled", ""], ["draft", c.draft === 1 ? "needs approval" : "need approval", "warn"], ["failed", "failed", "bad"]]
@@ -708,6 +769,42 @@ function statCell(c, now) {
   const stories = c.stories ? `<span>incl. ${c.stories} ${c.stories === 1 ? "story" : "stories"}</span>` : "";
   return `<td class="${cls}"><div class="n">${c.total}</div>${c.total ? `<div class="parts">${parts}${stories}</div>` : ""}</td>`;
 }
+function goalsCard(w) {
+  const goals = S.settings.goals || {};
+  const ks = kindStats(S.posts, w.start);
+  const rows = GOAL_KINDS.map(([k, name]) => {
+    const c = ks[k], goal = goals[k] || 0;
+    if (!goal && !c.total) return "";
+    const [txt, cls] = goalStatus(c, goal, w.past);
+    const parts = [[c.posted, "posted", "ok"], [c.scheduled, w.past ? "scheduled" : "still scheduled", ""], [c.draft, "to approve", "warn"], [c.failed, "failed", "bad"]]
+      .filter(x => x[0]).map(([n, word, k2]) => `<span class="${k2}">${n} ${word}</span>`).join("");
+    return `<div class="grow"><div class="ghead"><b>${name}</b><span class="gnum">${c.posted}${goal ? `<small> / ${goal}</small>` : ""}</span></div>
+      ${goalBar(c, goal)}<div class="gparts">${parts || `<span>Nothing yet</span>`}</div>${goal ? `<div class="gstat ${cls}">${esc(txt)}</div>` : ""}</div>`;
+  }).join("");
+  const anyGoal = GOAL_KINDS.some(([k]) => goals[k]);
+  return `<section class="card goals">
+    <div class="gtitle"><h2>${esc(w.name)} by type</h2><a class="tiny" href="#accounts">${anyGoal ? "Change goals" : "Set weekly goals"}</a></div>
+    ${rows ? `<div class="glist">${rows}</div>` : `<p class="muted tiny" style="margin:0">Nothing scheduled this week yet.</p>`}
+    <div class="glegend tiny muted"><span><i class="p"></i>Posted</span><span><i class="s"></i>Scheduled</span><span><i class="d"></i>Needs approval</span>${anyGoal ? "" : `<span>Set a goal per type under Accounts to see if you're on track.</span>`}</div>
+  </section>`;
+}
+async function saveGoals() {
+  const goals = {};
+  for (const el of document.querySelectorAll("[data-goal]")) {
+    const v = el.value.trim() === "" ? 0 : Number(el.value);
+    if (!Number.isInteger(v) || v < 0 || v > 500) { toast("Goals are whole numbers from 0 to 500.", true); return; }
+    goals[el.dataset.goal] = v;
+  }
+  try { S.settings = await api("/api/settings", {body: {goals}}); S.goalDraft = {}; toast("Weekly goals saved."); }
+  catch (e) { toast(e.message, true); }
+  render();
+}
+function goalInputs() {
+  // What's typed survives the screen redrawing (connection checks finishing) until it's saved.
+  const g = {...S.settings.goals, ...S.goalDraft};
+  return `<div class="goalin">${GOAL_KINDS.map(([k, n]) => `<label>${n}<input type="number" min="0" max="500" step="1" inputmode="numeric" data-goal="${k}" value="${esc(g[k] || "")}" placeholder="0"></label>`).join("")}</div>
+    <div class="row"><button class="btn small primary" id="savegoals">Save goals</button></div>`;
+}
 function viewStats() {
   const ws = S.settings.week_start;
   const weeks = statWeeks(todayKeyAZ(), ws, S.statShift);
@@ -718,7 +815,8 @@ function viewStats() {
     <div class="row"><button class="btn small" id="sprev" aria-label="Earlier weeks">←</button>${S.statShift ? `<button class="btn small" id="snow">This week</button>` : ""}<button class="btn small" id="snext" aria-label="Later weeks">→</button><button class="btn" id="refresh">Refresh</button></div>
   </header>
   ${S.error ? `<div class="notice bad">${esc(S.error)}</div>` : ""}
-  ${S.loading ? `<div class="card empty"><span class="spin"></span> Loading…</div>` : `
+  ${S.loading ? `<div class="card empty"><span class="spin"></span> Loading…</div>` : goalsCard(weeks[1]) + `
+  <h2 style="margin-bottom:-12px">By platform</h2>
   <table class="stats">
     <thead><tr><th></th>${weeks.map(w => `<th class="${w.now ? "now" : ""}">${esc(w.name)}<small>${esc(w.range)}</small></th>`).join("")}</tr></thead>
     <tbody>${rows}<tr class="total"><th>All platforms</th>${weeks.map(w => statCell(w.stats.all, w.now)).join("")}</tr></tbody>
@@ -794,6 +892,11 @@ function viewAccounts() {
     <div class="row"><label for="weekstart"><b>Week starts on</b></label>
       <select id="weekstart" style="width:auto">${DAY_NAMES.map((d, i) => `<option value="${i}" ${i === S.settings.week_start ? "selected" : ""}>${d}</option>`).join("")}</select>
       <span class="muted tiny">Used by Stats and the Calendar, here and on the phone.</span></div>
+  </section>
+  <section class="card stack">
+    <h2>Weekly goals</h2>
+    <p class="muted tiny" style="margin:0">How many of each you want to post a week. The Stats page shows how far along you are and what's still scheduled. Leave a box empty for no goal. A video that goes to Instagram, Facebook and TikTok counts as one reel and one TikTok.</p>
+    ${goalInputs()}
   </section>
   ${versionCard()}
   <section class="card stack">
@@ -1256,6 +1359,8 @@ function render() {
   else if (r === "accounts") {
     main.innerHTML = viewAccounts();
     $("#weekstart").onchange = e => saveWeekStart(e.target.value);
+    $("#savegoals").onclick = saveGoals;
+    document.querySelectorAll("[data-goal]").forEach(i => i.oninput = () => { S.goalDraft[i.dataset.goal] = i.value; });
     $("#recheck").onclick = () => { loadStatus(); };
     $("#ttlink").onclick = async () => { try { const d = await api("/api/tiktok/link"); window.open(d.url, "_blank", "noopener"); } catch (e) { toast(e.message, true); } };
     $("#ttgo").onclick = async () => { try { await api("/api/tiktok/code", {body: {code: $("#ttcode").value}}); toast("TikTok connected."); loadStatus(); } catch (e) { toast(e.message, true); } };
