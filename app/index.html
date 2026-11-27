@@ -680,7 +680,7 @@ function platformState(p, k) {
 }
 function weekStats(posts, start) {
   const end = addDays(start, 7);
-  const blank = () => ({total: 0, posted: 0, scheduled: 0, draft: 0, failed: 0, stories: 0});
+  const blank = () => ({total: 0, posted: 0, scheduled: 0, draft: 0, failed: 0, stories: 0, outside: 0});
   const out = {all: blank()};
   for (const k of STAT_PLATFORMS) out[k] = blank();
   for (const p of posts) {
@@ -689,17 +689,63 @@ function weekStats(posts, start) {
       if (!out[k]) continue;
       const st = platformState(p, k);
       if (!st) continue;
-      for (const c of [out[k], out.all]) { c.total++; c[st]++; if (p.platforms[k] === "story") c.stories++; }
+      for (const c of [out[k], out.all]) { c.total++; c[st]++; if (p.platforms[k] === "story") c.stories++; if (p.outside) c.outside++; }
     }
   }
   return out;
+}
+// Posts on Instagram and Facebook that the Scheduler didn't make (read by the Worker every 30 minutes, /api/live),
+// turned into post-like entries the stats can count. Posts the Scheduler made are matched by their ID, or failing
+// that by platform, kind and time (within 30 minutes), so nothing counts twice. TikTok isn't read.
+const LIVE_FMT = {instagram: {reel: "reel", story: "story", photo: "feed"}, facebook: {reel: "video", story: "story", photo: "post"}};
+function azDate(isoStr) { return new Intl.DateTimeFormat("en-CA", {timeZone: "America/Phoenix", year: "numeric", month: "2-digit", day: "2-digit"}).format(new Date(isoStr)); }
+function fmtKind(fmt) { return fmt === "story" ? "story" : fmt === "reel" || fmt === "video" ? "reel" : "photo"; }
+function outsidePosts() {
+  const live = (S.live && S.live.items) || [];
+  if (!live.length) return [];
+  const slots = [];
+  for (const p of S.posts) for (const [k, r] of Object.entries(p.results || {})) {
+    if (!r || r.status !== "done" || !LIVE_FMT[k]) continue;
+    slots.push({k, kind: fmtKind((p.platforms || {})[k]), t: Date.parse(r.at || p.scheduled_for), ids: [r.id, r.post_id].filter(Boolean).map(String), used: false});
+  }
+  const left = [];
+  for (const it of live) {
+    if (!LIVE_FMT[it.platform] || !LIVE_FMT[it.platform][it.kind] || !it.at) continue;
+    const ids = [String(it.id), ...(it.alt_ids || []).map(String)];
+    const s = slots.find(x => !x.used && x.k === it.platform && x.ids.some(i => ids.includes(i)))
+      || slots.find(x => !x.used && x.k === it.platform && x.kind === it.kind && Math.abs(x.t - Date.parse(it.at)) < 30 * 60e3);
+    if (s) s.used = true; else left.push(it);
+  }
+  // The same reel, story or photo shared to Instagram and Facebook within 15 minutes counts as one post.
+  const out = [];
+  for (const it of left.sort((a, b) => a.at.localeCompare(b.at))) {
+    const t = Date.parse(it.at);
+    const twin = out.find(o => o.kind === it.kind && !o.platforms[it.platform] && Math.abs(o.t - t) < 15 * 60e3);
+    const fmt = LIVE_FMT[it.platform][it.kind];
+    if (twin) { twin.platforms[it.platform] = fmt; twin.results[it.platform] = {status: "done"}; continue; }
+    out.push({outside: true, kind: it.kind, t, status: "done", approved: true, local_date: azDate(it.at), platforms: {[it.platform]: fmt}, results: {[it.platform]: {status: "done"}}});
+  }
+  return out;
+}
+function allPosts() { return S.posts.concat(outsidePosts()); }
+function liveNote() {
+  const l = S.live;
+  if (!l) return "";
+  if (!l.synced_at) return "Posts made in the Instagram and Facebook apps show up here once the scheduler has checked them (every 30 minutes, 5 AM to 10 PM).";
+  const when = new Intl.DateTimeFormat("en-US", {timeZone: "America/Phoenix", weekday: "short", hour: "numeric", minute: "2-digit"}).format(new Date(l.synced_at));
+  const errs = Object.keys(l.errors || {});
+  return `Includes posts made in the Instagram and Facebook apps (checked ${when}${errs.length ? `; couldn't read ${errs.map(e => e.replace("_", " ")).join(", ")}` : ""}). Stories made in the apps count from when the scheduler first sees them, since they only show for 24 hours. TikTok counts only what the Scheduler sent.`;
+}
+async function loadLive(refresh) {
+  try { S.live = refresh && false ? await api("/api/live/refresh", {body: {}}) : await api("/api/live"); } catch (e) { return; }
+  if (route() === "stats") render();
 }
 function statWeeks(todayK, ws, shift) {
   const cur = addDays(weekStartOf(todayK, ws), 7 * shift);
   return [-1, 0, 1].map(i => {
     const start = addDays(cur, 7 * i), off = shift + i;
     const name = off === 0 ? "This week" : off === -1 ? "Last week" : off === 1 ? "Next week" : off < 0 ? `${-off} weeks ago` : `In ${off} weeks`;
-    return {start, name, range: weekLabel(start), stats: weekStats(S.posts, start), now: off === 0, past: off < 0};
+    return {start, name, range: weekLabel(start), stats: weekStats(allPosts(), start), now: off === 0, past: off < 0};
   });
 }
 // Weekly goals by kind of post. One post counts once per kind, whatever platforms it goes to, and the same video can
@@ -721,10 +767,10 @@ function kindState(p, kind) {
 }
 function kindStats(posts, start) {
   const end = addDays(start, 7), out = {};
-  for (const [k] of GOAL_KINDS) out[k] = {total: 0, posted: 0, scheduled: 0, draft: 0, failed: 0};
+  for (const [k] of GOAL_KINDS) out[k] = {total: 0, posted: 0, scheduled: 0, draft: 0, failed: 0, outside: 0};
   for (const p of posts) {
     if (!p.local_date || p.local_date < start || p.local_date >= end) continue;
-    for (const k of postKinds(p)) { const st = kindState(p, k); if (st) { out[k].total++; out[k][st]++; } }
+    for (const k of postKinds(p)) { const st = kindState(p, k); if (st) { out[k].total++; out[k][st]++; if (p.outside) out[k].outside++; } }
   }
   return out;
 }
@@ -766,18 +812,18 @@ async function saveWeekStart(v) {
 function statCell(c, now) {
   const cls = (now ? "now " : "") + (c.total ? "" : "zero");
   const parts = statParts(c).map(x => `<span class="${x.cls}">${x.n} ${esc(x.word)}</span>`).join("");
-  const stories = c.stories ? `<span>incl. ${c.stories} ${c.stories === 1 ? "story" : "stories"}</span>` : "";
+  const stories = (c.stories ? `<span>incl. ${c.stories} ${c.stories === 1 ? "story" : "stories"}</span>` : "") + (c.outside ? `<span>incl. ${c.outside} from the apps</span>` : "");
   return `<td class="${cls}"><div class="n">${c.total}</div>${c.total ? `<div class="parts">${parts}${stories}</div>` : ""}</td>`;
 }
 function goalsCard(w) {
   const goals = S.settings.goals || {};
-  const ks = kindStats(S.posts, w.start);
+  const ks = kindStats(allPosts(), w.start);
   const rows = GOAL_KINDS.map(([k, name]) => {
     const c = ks[k], goal = goals[k] || 0;
     if (!goal && !c.total) return "";
     const [txt, cls] = goalStatus(c, goal, w.past);
     const parts = [[c.posted, "posted", "ok"], [c.scheduled, w.past ? "scheduled" : "still scheduled", ""], [c.draft, "to approve", "warn"], [c.failed, "failed", "bad"]]
-      .filter(x => x[0]).map(([n, word, k2]) => `<span class="${k2}">${n} ${word}</span>`).join("");
+      .filter(x => x[0]).map(([n, word, k2]) => `<span class="${k2}">${n} ${word}</span>`).join("") + (c.outside ? `<span>incl. ${c.outside} from the apps</span>` : "");
     return `<div class="grow"><div class="ghead"><b>${name}</b><span class="gnum">${c.posted}${goal ? `<small> / ${goal}</small>` : ""}</span></div>
       ${goalBar(c, goal)}<div class="gparts">${parts || `<span>Nothing yet</span>`}</div>${goal ? `<div class="gstat ${cls}">${esc(txt)}</div>` : ""}</div>`;
   }).join("");
@@ -821,7 +867,8 @@ function viewStats() {
     <thead><tr><th></th>${weeks.map(w => `<th class="${w.now ? "now" : ""}">${esc(w.name)}<small>${esc(w.range)}</small></th>`).join("")}</tr></thead>
     <tbody>${rows}<tr class="total"><th>All platforms</th>${weeks.map(w => statCell(w.stats.all, w.now)).join("")}</tr></tbody>
   </table>`}
-  <p class="muted tiny" style="margin:0">Weeks start on <b>${DAY_NAMES[ws]}</b> (change it under <a href="#accounts">Accounts</a>). Arizona time. A post that goes to Instagram and Facebook counts once on each. Stories count as posts. Cancelled posts aren't counted.</p>`;
+  <p class="muted tiny" style="margin:0">Weeks start on <b>${DAY_NAMES[ws]}</b> (change it under <a href="#accounts">Accounts</a>). Arizona time. A post that goes to Instagram and Facebook counts once on each. Stories count as posts. Cancelled posts aren't counted.</p>
+  ${liveNote() ? `<p class="muted tiny" style="margin:-20px 0 0">${esc(liveNote())}</p>` : ""}`;
 }
 
 function viewCalendar() {
@@ -1354,7 +1401,7 @@ function render() {
     $("#sprev").onclick = () => { S.statShift--; render(); };
     $("#snext").onclick = () => { S.statShift++; render(); };
     const sn = $("#snow"); if (sn) sn.onclick = () => { S.statShift = 0; render(); };
-    $("#refresh").onclick = () => { toast("Refreshing…"); loadPosts(); loadSettings(); };
+    $("#refresh").onclick = () => { toast("Refreshing…"); loadPosts(); loadSettings(); loadLive(); };
   }
   else if (r === "accounts") {
     main.innerHTML = viewAccounts();
@@ -1378,6 +1425,7 @@ window.addEventListener("hashchange", () => { render(); if (route() === "account
 render();
 loadPosts();
 loadSettings();
+loadLive();
 loadVersion(); setInterval(loadVersion, 10 * 60e3);
 if (route() === "accounts") loadStatus();
 </script>
